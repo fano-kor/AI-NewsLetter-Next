@@ -15,6 +15,7 @@ const TableNews: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);  // Loading state
   const [error, setError] = useState<string | null>(null);  // Error state
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     fetchNews();
@@ -58,6 +59,18 @@ const TableNews: React.FC = () => {
     setSelectedRows(selectedRows);  // Ensure selected rows are updated correctly
   };
 
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const filteredNews = useMemo(() => {
+    const searchTermWithoutSpaces = searchTerm.replace(/\s+/g, '').toLowerCase();
+    return news.filter(item =>
+      item.title.replace(/\s+/g, '').toLowerCase().includes(searchTermWithoutSpaces) ||
+      item.content.replace(/\s+/g, '').toLowerCase().includes(searchTermWithoutSpaces)
+    );
+  }, [news, searchTerm]);
+
   if (loading) {
     return <p>로딩 중...</p>; // Loading feedback
   }
@@ -71,6 +84,15 @@ const TableNews: React.FC = () => {
       <h4 className="mb-6 text-xl font-semibold text-black dark:text-white">
         뉴스 목록
       </h4>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="뉴스 검색..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="w-full p-2 border border-gray-300 rounded dark:bg-boxdark dark:text-white"
+        />
+      </div>
       <style jsx global>{`
         .rdg-cell {
           padding: 0 !important;
@@ -102,14 +124,15 @@ const TableNews: React.FC = () => {
       `}</style>
       <DataGrid
         columns={columns}
-        rows={news}
+        rows={filteredNews}
         rowKeyGetter={rowKeyGetter}  // Pass the key getter function
-        className="rdg-light h-[calc(100vh-350px)] overflow-auto" // Add overflow handling
+        className="rdg-light h-[calc(100vh-400px)] overflow-auto" // Add overflow handling
         selectedRows={selectedRows}  // Pass selected rows to DataGrid
         onSelectedRowsChange={handleSelectedRowsChange}  // Ensure state is updated when selected rows change
       />
       <div className="mt-4">
         <p>선택된 항목: {selectedRows.size}</p>
+        <p>검색 결과: {filteredNews.length}개의 뉴스</p>
       </div>
     </div>
   );
