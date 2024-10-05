@@ -1,43 +1,22 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-const getNews = async () => {
-  try {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-    console.log('백엔드URL :', backendUrl);
-    if (!backendUrl) {
-      throw new Error('백엔드 URL이 설정되지 않았습니다');
-    }
-
-    const url = new URL(`${backendUrl}/be/api/news`)
-    console.log('url :', url);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('뉴스를 가져오는데 실패했습니다');
-    }
-
-    const news = await response.json();
-    //console.log('뉴스 데이터 :', news);
-    return news;
-  } catch (error) {
-    console.error('뉴스 데이터 가져오기 오류:', error);
-    throw error;
-  }
-};
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    console.log('getNews :');
-    const news = await getNews();
+    const news = await prisma.news.findMany({
+      orderBy: {
+        published_at: 'desc'
+      },
+      take: 20 // 최근 20개의 뉴스 항목만 가져옵니다
+    });
+
     return NextResponse.json(news);
   } catch (error) {
-    console.error('Error fetching news:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('뉴스 데이터 가져오기 오류:', error);
+    return NextResponse.json({ error: '서버 내부 오류' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

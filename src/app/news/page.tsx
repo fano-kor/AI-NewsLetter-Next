@@ -15,7 +15,7 @@ const TablesPage = () => {
     <DefaultLayout>
       <Breadcrumb pageName="Tables" />
 
-      <div className="flex flex-col h-[calc(100vh-250px)] overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-230px)] overflow-hidden">
         <TableNews />
       </div>
     </DefaultLayout>

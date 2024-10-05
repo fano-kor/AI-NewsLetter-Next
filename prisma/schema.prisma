@@ -6,9 +6,23 @@
 
 generator client {
   provider = "prisma-client-js"
+  //previewFeatures = ["prismaSchemaFolder"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model news {
+  id             Int      @id
+  title          String?
+  content        String?
+  summary        String?
+  url            String?
+  source         String?
+  author         String?
+  published_at   DateTime?
+  keywords       String[]
+  crawled_at     DateTime?
 }

@@ -1,0 +1,8 @@
+model News {
+  id             String   @id @default(cuid())
+  title          String
+  url            String
+  created_at     DateTime @default(now())
+  points         Int
+  comments_count Int
+}
