@@ -1,7 +1,8 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataGrid, { SelectColumn } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
+import { debounce } from 'lodash'; // lodash를 설치해야 합니다: npm install lodash @types/lodash
 
 interface News {
   id: number;
@@ -10,31 +11,48 @@ interface News {
   published_at: string;
 }
 
+interface NewsResponse {
+  news: News[];
+  totalCount: number;
+}
+
 const TableNews: React.FC = () => {
   const [news, setNews] = useState<News[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState<boolean>(true);  // Loading state
-  const [error, setError] = useState<string | null>(null);  // Error state
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async (search: string) => {
     setLoading(true);
-    setError(null);  // Reset error on new fetch
+    setError(null);
     try {
-      const response = await fetch('/api/news');
+      const response = await fetch(`/api/news?page=${currentPage}&limit=${itemsPerPage}&search=${search}`);
       if (!response.ok) throw new Error('뉴스 데이터를 가져오는 데 실패했습니다.');
-      const data = await response.json();
-      setNews(data);
+      const data: NewsResponse = await response.json();
+      setNews(data.news);
+      setTotalCount(data.totalCount);
     } catch (error) {
       setError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
+
+  const debouncedFetchNews = useMemo(
+    () => debounce((search: string) => fetchNews(search), 1000),
+    [fetchNews]
+  );
+
+  useEffect(() => {
+    debouncedFetchNews(searchTerm);
+    return () => {
+      debouncedFetchNews.cancel();
+    };
+  }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage]);
 
   // Memoize columns to avoid re-creating them on every render
   const columns = useMemo(() => [
@@ -61,22 +79,22 @@ const TableNews: React.FC = () => {
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+    setCurrentPage(1); // 검색어 변경 시 첫 페이지로 이동
   };
 
-  const filteredNews = useMemo(() => {
-    const searchTermWithoutSpaces = searchTerm.replace(/\s+/g, '').toLowerCase();
-    return news.filter(item =>
-      item.title.replace(/\s+/g, '').toLowerCase().includes(searchTermWithoutSpaces) ||
-      item.content.replace(/\s+/g, '').toLowerCase().includes(searchTermWithoutSpaces)
-    );
-  }, [news, searchTerm]);
+  const handleItemsPerPageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setItemsPerPage(Number(event.target.value));
+    setCurrentPage(1); // 페이지당 항목 수 변경 시 첫 페이지로 이동
+  };
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   if (loading) {
-    return <p>로딩 중...</p>; // Loading feedback
+    return <p>로딩 중...</p>;
   }
 
   if (error) {
-    return <p style={{ color: 'red' }}>{error}</p>; // Display error message
+    return <p style={{ color: 'red' }}>{error}</p>;
   }
 
   return (
@@ -84,14 +102,23 @@ const TableNews: React.FC = () => {
       <h4 className="mb-6 text-xl font-semibold text-black dark:text-white">
         뉴스 목록
       </h4>
-      <div className="mb-4">
+      <div className="mb-4 flex justify-between items-center">
         <input
           type="text"
           placeholder="뉴스 검색..."
           value={searchTerm}
           onChange={handleSearchChange}
-          className="w-full p-2 border border-gray-300 rounded dark:bg-boxdark dark:text-white"
+          className="w-1/2 p-2 border border-gray-300 rounded dark:bg-boxdark dark:text-white"
         />
+        <select
+          value={itemsPerPage}
+          onChange={handleItemsPerPageChange}
+          className="p-2 border border-gray-300 rounded dark:bg-boxdark dark:text-white"
+        >
+          <option value={10}>10개씩 보기</option>
+          <option value={20}>20개씩 보기</option>
+          <option value={30}>30개씩 보기</option>
+        </select>
       </div>
       <style jsx global>{`
         .rdg-cell {
@@ -124,15 +151,34 @@ const TableNews: React.FC = () => {
       `}</style>
       <DataGrid
         columns={columns}
-        rows={filteredNews}
-        rowKeyGetter={rowKeyGetter}  // Pass the key getter function
-        className="rdg-light h-[calc(100vh-400px)] overflow-auto" // Add overflow handling
-        selectedRows={selectedRows}  // Pass selected rows to DataGrid
-        onSelectedRowsChange={handleSelectedRowsChange}  // Ensure state is updated when selected rows change
+        rows={news}
+        rowKeyGetter={rowKeyGetter}
+        className="rdg-light h-[calc(100vh-500px)] overflow-auto"
+        selectedRows={selectedRows}
+        onSelectedRowsChange={handleSelectedRowsChange}
       />
-      <div className="mt-4">
-        <p>선택된 항목: {selectedRows.size}</p>
-        <p>검색 결과: {filteredNews.length}개의 뉴스</p>
+      <div className="mt-4 flex justify-between items-center">
+        <div>
+          <p>선택된 항목: {selectedRows.size}</p>
+          <p>총 뉴스 수: {totalCount}</p>
+        </div>
+        <div className="flex items-center">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded mr-2 disabled:opacity-50"
+          >
+            이전
+          </button>
+          <span>{currentPage} / {totalPages}</span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded ml-2 disabled:opacity-50"
+          >
+            다음
+          </button>
+        </div>
       </div>
     </div>
   );
