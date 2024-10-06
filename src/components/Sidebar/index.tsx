@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn } from "react-icons/fi";
+import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn, FiSettings } from "react-icons/fi";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,8 +13,6 @@ interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
 }
-
-
 
 // menuGroups 배열 수정
 const menuGroups = [
@@ -31,6 +29,11 @@ const menuGroups = [
         icon: <FiCalendar className="w-5 h-5" />,
         label: "News",
         route: "/news",
+      },
+      {
+        icon: <FiSettings className="w-5 h-5" />,
+        label: "Settings",
+        route: "/settings",
       },
       {
         icon: <FiCalendar className="w-5 h-5" />,
@@ -91,14 +94,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       >
         {/* <!-- SIDEBAR HEADER --> */}
         <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
-          <Link href="/">
-            <Image
-              width={176}
-              height={32}
-              src={"/images/logo/logo.svg"}
-              alt="Logo"
-              priority
-            />
+          <Link href="/" className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <Image
+                width={48}
+                height={48}
+                src={"/images/logo/news-96.svg"}
+                alt="Logo"
+                priority
+              />
+              <h1 className="text-white text-2xl font-bold ml-2">AI NewsBrief</h1>
+            </div>
           </Link>
 
           <button
@@ -125,7 +131,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
         <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
           {/* <!-- Sidebar Menu --> */}
-          <nav className="mt-5 px-4 py-4 lg:mt-9 lg:px-6">
+          <nav className="px-4 py-4 lg:px-6">
             {menuGroups.map((group, groupIndex) => (
               <div key={groupIndex}>
                 <h3 className="mb-4 ml-4 text-sm font-semibold text-bodydark2">

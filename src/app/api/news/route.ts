@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: [{ emit: 'event', level: 'query' }],
+});
+
+prisma.$on('query', (e) => {
+  console.log(`${e.query} ${e.params}`);
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
