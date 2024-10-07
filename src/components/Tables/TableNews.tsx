@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { SelectColumn } from 'react-data-grid';
 import BCDataGrid from '@/components/BCCard/BCDataGrid';
-
-//import 'react-data-grid/lib/styles.css';
-import { debounce } from 'lodash'; // lodash를 설치해야 합니다: npm install lodash @types/lodash
+import NewsSummary from '@/components/NewsSummary/NewsSummary';
+import axios from 'axios';
+import { debounce } from 'lodash';
+import { FiMaximize2, FiMinimize2 } from 'react-icons/fi'; // 아이콘 추가
 
 interface News {
   id: number;
@@ -28,6 +29,9 @@ const TableNews: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true); // 요약 화면 확장 상태
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -115,73 +119,128 @@ const TableNews: React.FC = () => {
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  const handleAISummarize = useCallback(async () => {
+    if (selectedRows.size === 0) {
+      alert('뉴스를 선택해주세요.');
+      return;
+    }
+
+    setSummarizing(true);
+    setSummary(null);
+
+    try {
+      const selectedNews = news.filter((item) => selectedRows.has(item.id));
+      const response = await axios.post('/api/ai/summarize', {
+        news: selectedNews
+      });
+
+      setSummary(response.data.summary);
+    } catch (error) {
+      console.error('AI 뉴스 요약 중 오류 발생:', error);
+      alert('AI 뉴스 요약 중 오류가 발생했습니다.');
+    } finally {
+      setSummarizing(false);
+    }
+  }, [selectedRows, news]);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <div className="rounded-sm border border-stroke bg-white dark:bg-boxdark px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark sm:px-7.5 xl:pb-1">
-      <h4 className="mb-6 text-xl font-semibold text-black dark:text-white">
-        뉴스 목록
-      </h4>
-      <div className="mb-4 flex justify-between items-center">
-        <input
-          ref={searchInputRef}
-          type="text"
-          placeholder="뉴스 검색..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="w-1/2 p-2 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <select
-          value={itemsPerPage}
-          onChange={handleItemsPerPageChange}
-          className="p-2 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={10}>10개씩 보기</option>
-          <option value={50}>50개씩 보기</option>
-          <option value={100}>100개씩 보기</option>
-        </select>
-      </div>
-      <div className="relative h-[calc(100vh-450px)]">
-        <BCDataGrid
-          columns={columns}
-          rows={news}
-          rowKeyGetter={rowKeyGetter}
-          selectedRows={selectedRows}
-          onSelectedRowsChange={handleSelectedRowsChange}
-          isLoading={showLoading}
-          containerClassName="h-[calc(100vh-450px)]"
-        />
-        {showLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 dark:bg-boxdark dark:bg-opacity-70">
-            <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              로딩 중...
+    <div className="flex space-x-4">
+      <div className={`rounded-sm border border-stroke bg-white dark:bg-boxdark px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark sm:px-7.5 xl:pb-1 ${isExpanded ? 'w-2/3' : 'w-11/12'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-xl font-semibold text-black dark:text-white">
+            뉴스 목록
+          </h4>
+          <button
+            onClick={handleAISummarize}
+            disabled={summarizing || selectedRows.size === 0}
+            className="px-4 py-2 bg-primary text-white rounded hover:bg-opacity-90 disabled:opacity-50"
+          >
+            {summarizing ? 'AI 요약 중...' : 'AI 요약'} 
+          </button>
+        </div>
+        <div className="mb-4 flex justify-between items-center">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="뉴스 검색..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="w-1/2 p-2 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={itemsPerPage}
+            onChange={handleItemsPerPageChange}
+            className="p-2 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={10}>10개씩 보기</option>
+            <option value={50}>50개씩 보기</option>
+            <option value={100}>100개씩 보기</option>
+          </select>
+        </div>
+        <div className="relative h-[calc(100vh-550px)]">
+          <BCDataGrid
+            columns={columns}
+            rows={news}
+            rowKeyGetter={rowKeyGetter}
+            selectedRows={selectedRows}
+            onSelectedRowsChange={handleSelectedRowsChange}
+            isLoading={showLoading}
+            containerClassName="h-[calc(100vh-550px)]"
+          />
+          {showLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 dark:bg-boxdark dark:bg-opacity-70">
+              <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                로딩 중...
+              </div>
             </div>
+          )}
+        </div>
+        {error && <div className="mt-4 text-red-500">{error}</div>}
+        <div className="mt-4 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+          <div>
+            <p className="flex space-x-4 font-semibold">
+              <span>선택: {selectedRows.size}</span>
+              <span>총 뉴스 수: {totalCount}</span>
+            </p>
           </div>
-        )}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1 || loading}
+              className="px-3 py-1 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              이전
+            </button>
+            <span>{currentPage} / {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || loading}
+              className="px-3 py-1 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              다음
+            </button>
+          </div>
+        </div>
       </div>
-      {error && <div className="mt-4 text-red-500">{error}</div>}
-      <div className="mt-4 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-        <div>
-          <p className="flex space-x-4 font-semibold">
-            <span>선택: {selectedRows.size}</span>
-            <span>총 뉴스 수: {totalCount}</span>
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
+      <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'w-1/3' : 'w-1/12'}`}>
+        <div className="flex justify-between items-center mb-2">
+          <h4 className="text-xl font-semibold text-black dark:text-white">
+            요약
+          </h4>
           <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1 || loading}
-            className="px-3 py-1 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={toggleExpand}
+            className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
           >
-            이전
-          </button>
-          <span>{currentPage} / {totalPages}</span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages || loading}
-            className="px-3 py-1 border border-gray-300 rounded bg-white dark:bg-boxdark dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            다음
+            {isExpanded ? <FiMinimize2 /> : <FiMaximize2 />}
           </button>
         </div>
+        {isExpanded && (
+          <NewsSummary summary={summary} isLoading={summarizing} />
+        )}
       </div>
     </div>
   );
