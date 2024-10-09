@@ -22,6 +22,8 @@
     "jsvectormap": "^1.6.0",
     "lodash": "^4.17.21",
     "next": "^14.2.4",
+    "next-auth": "^4.24.8",
+    "nodemailer": "^6.9.15",
     "prisma": "^5.20.0",
     "react": "^18",
     "react-apexcharts": "^1.4.1",
