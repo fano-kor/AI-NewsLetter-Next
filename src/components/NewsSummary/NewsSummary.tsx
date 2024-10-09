@@ -3,17 +3,18 @@ import React from 'react';
 interface NewsSummaryProps {
   summary: string | null;
   isLoading: boolean;
+  children?: React.ReactNode;
 }
 
-const NewsSummary: React.FC<NewsSummaryProps> = ({ summary, isLoading }) => {
+const NewsSummary: React.FC<NewsSummaryProps> = ({ summary, isLoading, children }) => {
   return (
-    <div className="w-full bg-white dark:bg-boxdark rounded-sm border border-stroke dark:border-strokedark p-4">
+    <div className="h-full">
       {isLoading ? (
-        <p className="text-black dark:text-white">요약 중...</p>
+        <p>요약 중...</p>
       ) : summary ? (
-        <p className="text-black dark:text-white">{summary}</p>
+        children || <p>{summary}</p>
       ) : (
-        <p className="text-black dark:text-white">선택된 뉴스를 요약해 보세요.</p>
+        <p>선택된 뉴스가 없습니다.</p>
       )}
     </div>
   );

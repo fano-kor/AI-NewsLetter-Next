@@ -6,6 +6,7 @@ import NewsSummary from '@/components/NewsSummary/NewsSummary';
 import axios from 'axios';
 import { debounce } from 'lodash';
 import { FiMaximize2, FiMinimize2 } from 'react-icons/fi'; // 아이콘 추가
+import ReactMarkdown from 'react-markdown';
 
 interface News {
   id: number;
@@ -227,20 +228,26 @@ const TableNews: React.FC = () => {
         </div>
       </div>
       <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'w-1/3' : 'w-1/12'}`}>
-        <div className="flex justify-between items-center mb-2">
-          <h4 className="text-xl font-semibold text-black dark:text-white">
-            요약
-          </h4>
-          <button
-            onClick={toggleExpand}
-            className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-          >
-            {isExpanded ? <FiMinimize2 /> : <FiMaximize2 />}
-          </button>
+        <div className="rounded-sm border border-stroke bg-white dark:bg-boxdark shadow-default dark:border-strokedark h-[calc(100vh-100px)] flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b border-stroke dark:border-strokedark">
+            <h4 className="text-xl font-semibold text-black dark:text-white">
+              요약
+            </h4>
+            <button
+              onClick={toggleExpand}
+              className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            >
+              {isExpanded ? <FiMinimize2 /> : <FiMaximize2 />}
+            </button>
+          </div>
+          {isExpanded && (
+            <div className="flex-grow overflow-auto p-4">
+              <NewsSummary summary={summary} isLoading={summarizing}>
+                {summary && <ReactMarkdown>{summary}</ReactMarkdown>}
+              </NewsSummary>
+            </div>
+          )}
         </div>
-        {isExpanded && (
-          <NewsSummary summary={summary} isLoading={summarizing} />
-        )}
       </div>
     </div>
   );
