@@ -15,28 +15,32 @@ datasource db {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  name              String
-  email             String    @unique
-  password          String
-  role              String    @default("user")
-  emailVerified     DateTime?
-  image             String?
-  verificationCode  String?
-  verificationExpires DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  name                 String
+  email                String    @unique
+  password             String
+  role                 String    @default("user")
+  emailVerified        DateTime? @map("email_verified")
+  image                String?
+  verificationCode     String?   @map("verification_code")
+  verificationExpires  DateTime? @map("verification_expires")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@map("user")
 }
 
-model news {
-  id             Int      @id @default(autoincrement())
-  title          String?
-  content        String?
-  summary        String?
-  url            String   @unique // url 필드를 유니크 키로 설정
-  source         String?
-  author         String?
-  published_at   DateTime?
-  keywords       String[]
-  crawled_at     DateTime?
+model News {
+  id           Int       @id @default(autoincrement())
+  title        String?
+  content      String?
+  summary      String?
+  url          String?   @unique
+  source       String?
+  author       String?
+  publishedAt  DateTime? @map("published_at")
+  keywords     String[]
+  crawledAt    DateTime? @map("crawled_at")
+
+  @@map("news")
 }

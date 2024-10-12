@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="px-8 py-6 mt-4 text-left bg-white shadow-lg">
-        <h3 className="text-2xl font-bold text-center">AI-NewsLetter-Next에 로그인</h3>
+        <h3 className="text-2xl font-bold text-center">AI News Admin</h3>
         <form onSubmit={handleSubmit}>
           <div className="mt-4">
             <div>
@@ -47,12 +48,19 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div className="flex items-baseline justify-between">
-              <button className="px-6 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-900">로그인</button>
-              <a href="#" className="text-sm text-blue-600 hover:underline">비밀번호를 잊으셨나요?</a>
+            <div className="flex items-baseline justify-between mt-4">
+              <button className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-900">로그인</button>
+              <Link href="/auth/signup" className="text-sm text-blue-600 hover:underline">
+                회원가입
+              </Link>
             </div>
           </div>
         </form>
+        <div className="mt-4 text-center">
+          <Link href="#" className="text-sm text-blue-600 hover:underline">
+            비밀번호를 잊으셨나요?
+          </Link>
+        </div>
       </div>
     </div>
   );
