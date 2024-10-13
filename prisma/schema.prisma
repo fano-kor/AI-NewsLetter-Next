@@ -14,16 +14,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model EmailVerification {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  code              String?   @map("verification_code")
+  expiresAt         DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("email_verification")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("password_reset")
+}
+
 model User {
   id                   String    @id @default(cuid())
   name                 String
   email                String    @unique
   password             String
   role                 String    @default("user")
-  emailVerified        DateTime? @map("email_verified")
   image                String?
-  verificationCode     String?   @map("verification_code")
-  verificationExpires  DateTime? @map("verification_expires")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 

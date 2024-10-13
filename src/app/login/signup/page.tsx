@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DefaultLayout from "@/components/Layouts/DefaultLayout";
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState("");
@@ -14,6 +13,16 @@ const SignUp: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (timeLeft !== null && timeLeft > 0) {
+      timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [timeLeft]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -23,11 +32,11 @@ const SignUp: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
+      const data = await res.json();
       if (res.ok) {
         setIsEmailSent(true);
         setTimeLeft(180); // 3분 = 180초
       } else {
-        const data = await res.json();
         setError(data.error || "회원가입 중 오류가 발생했습니다.");
       }
     } catch (error) {
@@ -42,7 +51,7 @@ const SignUp: React.FC = () => {
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code: verificationCode }),
+        body: JSON.stringify({ email, code: verificationCode, password, name }),
       });
       if (res.ok) {
         router.push("/dashboard");
@@ -56,109 +65,98 @@ const SignUp: React.FC = () => {
   };
 
   return (
-    <DefaultLayout>
-      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        <div className="flex flex-wrap items-center">
-          <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
-            <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
-              <h2 className="mb-9 text-2xl font-bold text-black dark:text-white">
-                AI-NewsLetter-Next 회원가입
-              </h2>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <h2 className="mb-6 text-3xl font-bold text-center text-gray-800 dark:text-white">
+          AI-NewsLetter-Next 회원가입
+        </h2>
 
-              {error && (
-                <div className="mb-4 text-red-500">{error}</div>
+        {error && (
+          <div className="mb-4 text-sm text-center text-red-500">{error}</div>
+        )}
+
+        <form onSubmit={isEmailSent ? handleVerification : handleSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              이름
+            </label>
+            <input
+              type="text"
+              placeholder="이름을 입력하세요"
+              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={isEmailSent}
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              이메일
+            </label>
+            <input
+              type="email"
+              placeholder="@bccard.com 이메일을 입력하세요"
+              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isEmailSent}
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              비밀번호
+            </label>
+            <input
+              type="password"
+              placeholder="비밀번호를 입력하세요"
+              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isEmailSent}
+            />
+          </div>
+
+          {isEmailSent && (
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                인증 코드
+              </label>
+              <input
+                type="text"
+                placeholder="이메일로 받은 6자리 코드를 입력하세요"
+                className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                required
+              />
+              {timeLeft !== null && timeLeft > 0 && (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  남은 시간: {Math.floor(timeLeft / 60)}분 {timeLeft % 60}초
+                </p>
               )}
-
-              {!isEmailSent ? (
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
-                    <label className="mb-2.5 block font-medium text-black dark:text-white">
-                      이름
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="이름을 입력하세요"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="mb-2.5 block font-medium text-black dark:text-white">
-                      이메일
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="@bccard.com 이메일을 입력하세요"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-6">
-                    <label className="mb-2.5 block font-medium text-black dark:text-white">
-                      비밀번호
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="비밀번호를 입력하세요"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full cursor-pointer rounded-lg border border-primary bg-primary p-4 text-white transition hover:bg-opacity-90"
-                  >
-                    회원가입
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerification}>
-                  <div className="mb-6">
-                    <label className="mb-2.5 block font-medium text-black dark:text-white">
-                      인증 코드
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="이메일로 받은 6자리 코드를 입력하세요"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      required
-                    />
-                    {timeLeft !== null && timeLeft > 0 && (
-                      <p className="mt-2 text-sm text-gray-600">
-                        남은 시간: {Math.floor(timeLeft / 60)}분 {timeLeft % 60}초
-                      </p>
-                    )}
-                    {timeLeft !== null && timeLeft <= 0 && (
-                      <p className="mt-2 text-sm text-red-600">
-                        인증 시간이 만료되었습니다. 다시 시도해주세요.
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full cursor-pointer rounded-lg border border-primary bg-primary p-4 text-white transition hover:bg-opacity-90"
-                    disabled={timeLeft !== null && timeLeft <= 0}
-                  >
-                    이메일 인증
-                  </button>
-                </form>
+              {timeLeft !== null && timeLeft <= 0 && (
+                <p className="mt-2 text-sm text-red-500">
+                  인증 시간이 만료되었습니다. 다시 시도해주세요.
+                </p>
               )}
             </div>
-          </div>
-        </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            disabled={(isEmailSent && timeLeft !== null && timeLeft <= 0)}
+          >
+            {isEmailSent ? "이메일 인증" : "회원가입"}
+          </button>
+        </form>
       </div>
-    </DefaultLayout>
+    </div>
   );
 };
 
