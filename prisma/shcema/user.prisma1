@@ -1,0 +1,12 @@
+model user {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            String    @default("user")
+  emailVerified   DateTime?
+  image           String?
+  verificationCode String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

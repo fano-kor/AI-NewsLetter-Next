@@ -28,7 +28,7 @@ export async function GET(request: Request) {
           ],
         },
         orderBy: {
-          published_at: 'desc'
+          publishedAt: 'desc'
         },
         skip,
         take: limit
@@ -73,18 +73,18 @@ export async function POST(request: Request) {
       const article = JSON.parse(line);
       
       const existingArticle = await prisma.news.findUnique({
-        where: { url: article.url } as Prisma.newsWhereUniqueInput,
+        where: { url: article.url } as Prisma.NewsWhereUniqueInput,
       });
 
       if (existingArticle) {
         // 기존 기사가 존재하면 업데이트
         const updatedKeywords = Array.from(new Set([...existingArticle.keywords, ...article.keywords]));
         await prisma.news.update({
-          where: { url: article.url } as Prisma.newsWhereUniqueInput,
+          where: { url: article.url },
           data: {
             title: article.title,
             content: article.content,
-            published_at: new Date(article.published_at),
+            publishedAt: new Date(article.publishedAt),
             keywords: updatedKeywords,
           },
         });
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
           data: {
             title: article.title,
             content: article.content,
-            published_at: new Date(article.published_at),
+            publishedAt: new Date(article.publishedAt),
             url: article.url,
             keywords: article.keywords,
           },

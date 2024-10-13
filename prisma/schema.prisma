@@ -14,29 +14,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                String    @id @default(cuid())
-  name              String
-  email             String    @unique
-  password          String
-  role              String    @default("user")
-  emailVerified     DateTime?
-  image             String?
-  verificationCode  String?
-  verificationExpires DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+model EmailVerification {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  code              String?   @map("verification_code")
+  expiresAt         DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("email_verification")
 }
 
-model news {
-  id             Int      @id @default(autoincrement())
-  title          String?
-  content        String?
-  summary        String?
-  url            String   @unique // url 필드를 유니크 키로 설정
-  source         String?
-  author         String?
-  published_at   DateTime?
-  keywords       String[]
-  crawled_at     DateTime?
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("password_reset")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  name                 String
+  email                String    @unique
+  password             String
+  role                 String    @default("user")
+  image                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@map("user")
+}
+
+model News {
+  id           Int       @id @default(autoincrement())
+  title        String?
+  content      String?
+  summary      String?
+  url          String?   @unique
+  source       String?
+  author       String?
+  publishedAt  DateTime? @map("published_at")
+  keywords     String[]
+  crawledAt    DateTime? @map("crawled_at")
+
+  @@map("news")
 }
