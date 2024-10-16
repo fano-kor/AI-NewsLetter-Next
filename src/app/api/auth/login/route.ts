@@ -10,7 +10,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 });
     }
 
-    const token = generateToken(user.userId);
+    const token = await generateToken(user.userId);
+    console.log(token);
     return NextResponse.json({ token });
   } catch (error) {
     console.error('로그인 오류:', error);

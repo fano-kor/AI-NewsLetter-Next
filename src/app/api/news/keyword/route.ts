@@ -6,7 +6,6 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '10', 10);
   const search = searchParams.get('search') || '';
-  const keyword = searchParams.get('keyword') || '';
 
   const skip = (page - 1) * limit;
 
@@ -14,14 +13,10 @@ export async function GET(request: Request) {
     const [news, totalCount] = await Promise.all([
       prisma.news.findMany({
         where: {
-          AND: [
-            keyword ? { keywords: { has: keyword } } : {},
-            {
-              OR: [
-                { title: { contains: search, mode: 'insensitive' } },
-                { content: { contains: search, mode: 'insensitive' } },
-              ],
-            },
+          OR: [
+            
+            { title: { contains: search, mode: 'insensitive' } },
+            { content: { contains: search, mode: 'insensitive' } },
           ],
         },
         orderBy: {
@@ -32,14 +27,9 @@ export async function GET(request: Request) {
       }),
       prisma.news.count({
         where: {
-          AND: [
-            keyword ? { keywords: { has: keyword } } : {},
-            {
-              OR: [
-                { title: { contains: search, mode: 'insensitive' } },
-                { content: { contains: search, mode: 'insensitive' } },
-              ],
-            },
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { content: { contains: search, mode: 'insensitive' } },
           ],
         },
       })

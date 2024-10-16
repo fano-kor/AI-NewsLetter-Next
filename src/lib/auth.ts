@@ -1,13 +1,13 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
+import * as jose from 'jose';
+import prisma from '@/lib/prisma';  // 전역 Prisma 인스턴스 import
 
-const prisma = new PrismaClient();
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
 
 export async function verifyPassword(email: string, password: string): Promise<{ userId: string } | null> {
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { email } });
     if (!user) return null;
 
     const isValid = await bcrypt.compare(password, user.password);
@@ -20,19 +20,36 @@ export async function verifyPassword(email: string, password: string): Promise<{
   }
 }
 
-export function generateToken(userId: string): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET이 설정되지 않았습니다.');
+export async function isTokenValid(token: string): Promise<boolean> {
+  try {console.log('11');
+    await jose.jwtVerify(token, SECRET_KEY, {
+      algorithms: ['HS256'],
+    });console.log('22');
+    return true;
+  } catch (error) {
+    console.error('토큰 검증 오류:', error);
+    return false;
   }
-  return jwt.sign({ userId }, secret, { expiresIn: '1d' });
 }
 
-export function verifyToken(token: string): { userId: string } | null {
+export async function generateToken(userId: string): Promise<string> {
+  if (!process.env.JWT_SECRET_KEY) {
+    throw new Error('JWT_SECRET_KEY가 설정되지 않았습니다.');
+  }
+
+  return await new jose.SignJWT({ userId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('24h')
+    .sign(SECRET_KEY);
+}
+
+export async function verifyToken(token: string): Promise<{ userId: string } | null> {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string };
-    return decoded;
+    const { payload } = await jose.jwtVerify(token, SECRET_KEY);
+    return { userId: payload.userId as string };
   } catch (error) {
+    console.error('토큰 검증 오류:', error);
     return null;
   }
 }
@@ -50,22 +67,38 @@ export async function getUser() {
     return null;
   }
 
-  const decoded = verifyToken(token);
+  const decoded = await verifyToken(token);
   if (!decoded) {
     return null;
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    const user = await prisma.users.findUnique({ 
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        aiPrompt: true,
+        interestKeywords: true,
+        emailScheduleDays: true,
+        emailScheduleTime: true,
+        isSubscribed: true,
+      }
+    });
     if (!user) {
       return null;
     }
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email
-    };
+    user.aiPrompt = user.aiPrompt === "" ? process.env.DEFAULT_AI_PROMPT ?? null : user.aiPrompt;
+
+    console.log(user.aiPrompt);
+
+    return user;
   } catch (error) {
     console.error('사용자 정보 조회 오류:', error);
     return null;

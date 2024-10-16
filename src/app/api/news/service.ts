@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 export async function processJsonlContent(content: string): Promise<number> {
   console.log(content);
@@ -20,9 +18,10 @@ export async function processJsonlContent(content: string): Promise<number> {
             url: newsData.url,
             source: newsData.source,
             author: newsData.author,
-            published_at: new Date(newsData.published_at),
+            publishedAt: new Date(newsData.published_at),
             keywords: newsData.keywords,
-            crawled_at: new Date()
+            crawledAt: new Date(),
+            thumbnailImage: newsData.thumbnail_image
           }
         });
         processedCount++;

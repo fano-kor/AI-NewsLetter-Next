@@ -5,14 +5,15 @@ import BCDataGrid from '@/components/BCCard/BCDataGrid';
 import NewsSummary from '@/components/NewsSummary/NewsSummary';
 import axios from 'axios';
 import { debounce } from 'lodash';
-import { FiMaximize2, FiMinimize2 } from 'react-icons/fi'; // 아이콘 추가
+import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 
 interface News {
   id: number;
   title: string;
   content: string;
-  published_at: string;
+  url: string;
+  publishedAt: string;
 }
 
 interface NewsResponse {
@@ -20,7 +21,12 @@ interface NewsResponse {
   totalCount: number;
 }
 
-const TableNews: React.FC = () => {
+interface NewsBaseProps {
+  title: string;
+  keyword?: string;
+}
+
+const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
   const [news, setNews] = useState<News[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
@@ -32,7 +38,7 @@ const TableNews: React.FC = () => {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true); // 요약 화면 확장 상태
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -42,13 +48,22 @@ const TableNews: React.FC = () => {
     setShowLoading(false);
     setError(null);
 
-    // 2초 후에 showLoading을 true로 설정하는 타이머 시작
     loadingTimerRef.current = setTimeout(() => {
       setShowLoading(true);
     }, 2000);
 
     try {
-      const response = await fetch(`/api/news?page=${currentPage}&limit=${itemsPerPage}&search=${search}`);
+      const url = new URL('/api/news', window.location.origin);
+      url.searchParams.append('page', currentPage.toString());
+      url.searchParams.append('limit', itemsPerPage.toString());
+      url.searchParams.append('search', search);
+      if (keyword) {
+        url.searchParams.append('keyword', keyword);
+      }
+
+      console.log('Fetching URL:', url.toString()); // 디버깅을 위해 URL 로깅
+
+      const response = await fetch(url.toString());
       if (!response.ok) throw new Error('뉴스 데이터를 가져오는 데 실패했습니다.');
       const data: NewsResponse = await response.json();
       setNews(prevNews => {
@@ -63,12 +78,11 @@ const TableNews: React.FC = () => {
     } finally {
       setLoading(false);
       setShowLoading(false);
-      // 타이머가 아직 실행 중이라면 클리어
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current);
       }
     }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, keyword]);
 
   const debouncedFetchNews = useMemo(
     () => debounce((search: string) => fetchNews(search), 1000),
@@ -76,6 +90,7 @@ const TableNews: React.FC = () => {
   );
 
   useEffect(() => {
+    console.log('Current keyword:', keyword); // 디버깅을 위해 현재 keyword 로깅
     debouncedFetchNews(searchTerm);
     return () => {
       debouncedFetchNews.cancel();
@@ -83,39 +98,29 @@ const TableNews: React.FC = () => {
         clearTimeout(loadingTimerRef.current);
       }
     };
-  }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage]);
+  }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage, keyword]);
 
-  // Memoize columns to avoid re-creating them on every render
   const columns = useMemo(() => [
-    SelectColumn, // Default checkbox column
-    { 
-      key: 'id', 
-      name: 'ID', 
-      width: 70,
-      formatter: ({ row }: { row: News }) => (
-        <div style={{ textAlign: 'center' }}>{row.id}</div>
-      ),
-    },
+    SelectColumn,
     { key: 'title', name: '제목' },
     { key: 'content', name: '내용', width: 500 },
-    { key: 'published_at', name: '발행일' }
+    { key: 'publishedAt', name: '발행일' }
   ], []);
 
-  // Key getter function to return the 'id' for each row
   const rowKeyGetter = (row: News) => row.id;
 
   const handleSelectedRowsChange = (selectedRows: Set<number>) => {
-    setSelectedRows(selectedRows);  // Ensure selected rows are updated correctly
+    setSelectedRows(selectedRows);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
-    setCurrentPage(1); // 검색어 변경 시 첫 페이지로 이동
+    setCurrentPage(1);
   };
 
   const handleItemsPerPageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setItemsPerPage(Number(event.target.value));
-    setCurrentPage(1); // 페이지당 항목 수 변경 시 첫 페이지로 이동
+    setCurrentPage(1);
   };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -130,7 +135,10 @@ const TableNews: React.FC = () => {
     setSummary(null);
 
     try {
-      const selectedNews = news.filter((item) => selectedRows.has(item.id));
+      const selectedNews = news
+        .filter((item) => selectedRows.has(item.id))
+        .map(({ title, content, url }) => ({ title, content, url }));
+
       const response = await axios.post('/api/ai/summarize', {
         news: selectedNews
       });
@@ -153,7 +161,7 @@ const TableNews: React.FC = () => {
       <div className={`rounded-sm border border-stroke bg-white dark:bg-boxdark px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark sm:px-7.5 xl:pb-1 ${isExpanded ? 'w-2/3' : 'w-11/12'}`}>
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-xl font-semibold text-black dark:text-white">
-            뉴스 목록
+            {title}
           </h4>
           <button
             onClick={handleAISummarize}
@@ -253,4 +261,4 @@ const TableNews: React.FC = () => {
   );
 };
 
-export default TableNews;
+export default NewsBase;

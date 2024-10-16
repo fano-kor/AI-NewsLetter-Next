@@ -1,46 +1,70 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { getUser } from '@/lib/auth';  // getUser 함수를 import 합니다.
 
-export async function POST(req: Request) {
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+const DEFAULT_AI_PROMPT = process.env.DEFAULT_AI_PROMPT;
+
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const { news } = body;
-
-    // 프롬프트 추가
-    const prompt = "다음은 여러 개의 뉴스 기사입니다. 이 기사들을 종합하여 핵심 내용을 간략하게 요약해주세요:\n\n";
-
-    // 뉴스 내용을 하나의 문자열로 결합
-    const newsContent = news.map((item: any) => item.content).join("\n\n");
-
-    // 프롬프트와 뉴스 내용을 결합
-    const fullContent = prompt + newsContent;
-
-    // 결합된 내용을 UTF-8 인코딩된 바이트 배열로 변환
-    const contentBytes = new TextEncoder().encode(fullContent);
-
-    // AI-NewsLetter-AIHandler API 호출
-    const response = await axios.post(process.env.AI_HANDLER_URL + "/api/summarize", contentBytes, {
-      headers: {
-        'Content-Type': 'application/octet-stream'
-      }
-    });
-
-    // 응답 로깅
-    console.log('AI 요약 API 응답:', JSON.stringify(response.data, null, 2));
-
-    return NextResponse.json({ 
-      summary: response.data.summary,
-      fullResponse: response.data  // 전체 응답 데이터 포함
-    });
-  } catch (error) {
-    console.error('AI 뉴스 요약 중 오류 발생:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('에러 응답:', error.response.data);
-      return NextResponse.json({ 
-        error: 'AI 뉴스 요약 중 오류가 발생했습니다.', 
-        details: error.response.data 
-      }, { status: error.response.status });
+    const { news } = await request.json();
+    const newsString = JSON.stringify(news);
+    //console.log('뉴스 데이터:', news);
+    // 현재 사용자의 정보를 가져옵니다.
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
     }
-    return NextResponse.json({ error: 'AI 뉴스 요약 중 오류가 발생했습니다.' }, { status: 500 });
+
+    // 사용자의 aiPrompt를 가져옵니다. 없으면 환경 변수의 기본 프롬프트를 사용합니다.
+    const prompt = user.aiPrompt || DEFAULT_AI_PROMPT || "당신은 여러 출처의 중요한 뉴스를 요약하도록 설계된 AI입니다. JSONArray 형식으로 뉴스 기사가 제공되며, 이를 읽고 주요 뉴스를 추출하여 간결한 뉴스 브리핑을 작성하는 것이 당신의 역할입니다.";
+    console.log('AI 프롬프트:', prompt);
+    // 뉴스 내용을 하나의 문자열로 결합
+    //const newsContent = news.map((item: any) => item.content).join("\n\n");
+
+    const endpoint = "https://api.perplexity.ai/chat/completions";
+    const headers = {
+      "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+      "Content-Type": "application/json"
+    };
+    
+    const data = {
+      //"model": "llama-3.1-70b-instruct",
+      //"model": "llama-3.1-sonar-small-128k-online",
+      "model": "llama-3.1-sonar-large-128k-online",
+      "messages": [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": newsString}
+      ],
+      "temperature": 0.2,
+      "top_p": 0.9
+    };
+
+    //console.log('API 요청 데이터:', JSON.stringify(data, null, 2));
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      console.error('API 요청 실패:', response.status, response.statusText);
+      const errorBody = await response.text();
+      console.error('에러 응답 본문:', errorBody);
+      throw new Error(`API 요청 실패: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('API 응답:', JSON.stringify(result, null, 2));
+
+    if ('choices' in result && result.choices.length > 0) {
+      return NextResponse.json({ summary: result.choices[0].message.content });
+    } else {
+      throw new Error("API 응답에 예상된 데이터가 없습니다.");
+    }
+
+  } catch (error) {
+    console.error('뉴스 요약 중 오류 발생:', error);
+    return NextResponse.json({ error: '뉴스 요약 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }

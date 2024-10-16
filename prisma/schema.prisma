@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  //previewFeatures = ["prismaSchemaFolder"]
 }
 
 datasource db {
@@ -15,11 +8,11 @@ datasource db {
 }
 
 model EmailVerification {
-  id                 String   @id @default(cuid())
-  email              String   @unique
-  code              String?   @map("verification_code")
-  expiresAt         DateTime  @map("expires_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String?  @map("verification_code")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("email_verification")
 }
@@ -28,36 +21,75 @@ model PasswordReset {
   id        String   @id @default(cuid())
   email     String   @unique
   code      String
-  expiresAt DateTime  @map("expires_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("password_reset")
 }
 
-model User {
-  id                   String    @id @default(cuid())
-  name                 String
-  email                String    @unique
-  password             String
-  role                 String    @default("user")
-  image                String?
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+model Users {
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  password          String
+  role              String   @default("user")
+  image             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  aiPrompt          String?  @map("ai_prompt")
+  interestKeywords  String[] @default([]) @map("interest_keywords")
+  isAdmin           Boolean  @default(false) @map("is_admin")
+  emailScheduleDays String[] @default([]) @map("email_schedule_days")
+  emailScheduleTime String?  @map("email_schedule_time")
+  isSubscribed      Boolean  @default(false) @map("is_subscribed")
 
-  @@map("user")
+  @@map("users")
 }
 
 model News {
-  id           Int       @id @default(autoincrement())
-  title        String?
-  content      String?
-  summary      String?
-  url          String?   @unique
-  source       String?
-  author       String?
-  publishedAt  DateTime? @map("published_at")
-  keywords     String[]
-  crawledAt    DateTime? @map("crawled_at")
+  id             String    @id @default(cuid())
+  title          String?
+  content        String?
+  summary        String?
+  url            String?   @unique
+  source         String?
+  author         String?
+  publishedAt    DateTime? @map("published_at")
+  keywords       String[]
+  crawledAt      DateTime? @map("crawled_at")
+  thumbnailImage Bytes?    @map("thumbnail_image")
 
   @@map("news")
+}
+
+model Keywords {
+  id        String   @id @default(cuid())
+  keyword   String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("keywords")
+}
+
+model EmailQueue {
+  id            Int       @id @default(autoincrement())
+  recipient     String
+  subject       String
+  body          String    @db.Text
+  status        EmailStatus @default(PENDING)
+  failureReason String? @map("failure_reason")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  sentAt        DateTime? @map("sent_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("email_queue")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("email_status")
 }
