@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn, FiSettings } from "react-icons/fi";
+import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn, FiSettings, FiList } from "react-icons/fi";
 import { RiAdminLine } from "react-icons/ri";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -43,6 +43,11 @@ const menuGroups = [
         icon: <FiFileText className="w-5 h-5" />,
         label: "Keyword News",
         route: "/keyword-news",
+      },
+      {
+        icon: <FiList className="w-5 h-5" />,
+        label: "일간 요약",
+        route: "/daily-summary",
       },
       {
         icon: <FiCalendar className="w-5 h-5" />,
@@ -119,9 +124,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   // menuGroups를 동적으로 생성합니다
   const menuGroups = [
+    // {
+    //   icon: <FiGrid className="w-5 h-5" />,
+    //   label: "Dashboard",
+    //   route: "#",
+    //   children: [{ label: "eCommerce", route: "/" }],
+    // },
     {
       name: "MENU",
       menuItems: [
+        {
+          icon: <FiList className="w-5 h-5" />,
+          label: "일간     요약",
+          route: "/daily-summary",
+        },
         {
           icon: <FiFileText className="w-5 h-5" />,
           label: "Keyword News",
@@ -143,6 +159,48 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           label: "Admin",
           route: "/admin",
         }] : []),
+        // {
+        //   icon: <FiCalendar className="w-5 h-5" />,
+        //   label: "Calendar",
+        //   route: "/calendar",
+        // },
+        // {
+        //   icon: <FiUser className="w-5 h-5" />,
+        //   label: "Profile",
+        //   route: "/profile",
+        // },
+        // {
+        //   icon: <FiFileText className="w-5 h-5" />,
+        //   label: "Forms",
+        //   route: "#",
+        //   children: [
+        //     { label: "Form Elements", route: "/forms/form-elements" },
+        //     { label: "Form Layout", route: "/forms/form-layout" },
+        //   ],
+        // },
+        // {
+        //   icon: <FiLayout className="w-5 h-5" />,
+        //   label: "Tables",
+        //   route: "/tables",
+        // },
+        // {
+        //   icon: <FiLayers className="w-5 h-5" />,
+        //   label: "UI Elements",
+        //   route: "#",
+        //   children: [
+        //     { label: "Alerts", route: "/ui/alerts" },
+        //     { label: "Buttons", route: "/ui/buttons" },
+        //   ],
+        // },
+        // {
+        //   icon: <FiLogIn className="w-5 h-5" />,
+        //   label: "Authentication",
+        //   route: "#",
+        //   children: [
+        //     { label: "Sign In", route: "/auth/signin" },
+        //     { label: "Sign Up", route: "/auth/signup" },
+        //   ],
+        // },
       ],
     },
   ];

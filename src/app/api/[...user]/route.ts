@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { name, interestKeywords, aiPrompt, emailScheduleDays, emailScheduleTime, isSubscribed } = data;
+    const { name, interestTags, aiPrompt, emailScheduleDays, emailScheduleTime, isSubscribed } = data;
 
     user.aiPrompt = user.aiPrompt === "" ? process.env.DEFAULT_AI_PROMPT ?? null : user.aiPrompt;
 
@@ -32,7 +32,7 @@ export async function PUT(request: NextRequest) {
       where: { id: user.id },
       data: {
         name,
-        interestKeywords,
+        interestTags,
         aiPrompt,
         emailScheduleDays,
         emailScheduleTime,
@@ -44,7 +44,7 @@ export async function PUT(request: NextRequest) {
       message: '설정이 저장되었습니다.',
       user: {
         name: updatedUser.name,
-        interestKeywords: updatedUser.interestKeywords,
+        interestTags: updatedUser.interestTags,
         aiPrompt: updatedUser.aiPrompt,
         emailScheduleDays: updatedUser.emailScheduleDays,
         emailScheduleTime: updatedUser.emailScheduleTime,

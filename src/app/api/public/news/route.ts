@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       if (existingArticle) {
         // 기존 기사가 존재하면 키워드 업데이트
         const updatedKeywords = Array.from(new Set([...existingArticle.keywords, ...article.keywords]));
+        const updatedTags = Array.from(new Set([...existingArticle.tags, ...article.tags]));
         await prisma.news.update({
           where: { url: article.url },
           data: {
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
             content: article.content,
             publishedAt: new Date(article.published_at),
             keywords: updatedKeywords,
-            thumbnailImage: thumbnailImageBytes
+            thumbnailImage: thumbnailImageBytes,
+            tags: updatedTags
           },
         });
         updatedCount++;
@@ -53,7 +55,8 @@ export async function POST(request: Request) {
             publishedAt: new Date(article.published_at),
             url: article.url,
             keywords: article.keywords,
-            thumbnailImage: thumbnailImageBytes
+            thumbnailImage: thumbnailImageBytes,
+            tags: article.tags,
           },
         });
         createdCount++;

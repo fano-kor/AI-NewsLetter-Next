@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '10', 10);
   const search = searchParams.get('search') || '';
   const keyword = searchParams.get('keyword') || '';
+  const tag = searchParams.get('tag') || '';
 
   const skip = (page - 1) * limit;
 
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
         },
         where: {
           AND: [
-            keyword ? { keywords: { has: keyword } } : {},
+            tag ? { tags: { has: tag } } : {},
             {
               OR: [
                 { title: { contains: search, mode: 'insensitive' } },
@@ -34,8 +35,8 @@ export async function GET(request: Request) {
           ],
         },
         orderBy: {
-          //publishedAt: 'desc'
-          tags: 'asc'
+          publishedAt: 'desc'
+          //tags: 'asc'
         },
         skip,
         take: limit
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
       prisma.news.count({
         where: {
           AND: [
-            keyword ? { keywords: { has: keyword } } : {},
+            tag ? { tags: { has: tag } } : {},
             {
               OR: [
                 { title: { contains: search, mode: 'insensitive' } },

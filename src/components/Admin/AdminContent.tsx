@@ -9,6 +9,11 @@ interface Keyword {
   label: string;
 }
 
+interface Tag {
+  value: string;
+  label: string;
+}
+
 interface ToastState {
   show: boolean;
   message: string;
@@ -18,26 +23,39 @@ interface ToastState {
 const AdminContent = () => {
   const [allKeywords, setAllKeywords] = useState<Keyword[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [newTag, setNewTag] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
-    const fetchKeywords = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/keywords');
-        if (!response.ok) {
+        const [keywordsResponse, tagsResponse] = await Promise.all([
+          fetch('/api/keywords'),
+          fetch('/api/tags')
+        ]);
+
+        if (!keywordsResponse.ok) {
           throw new Error('키워드를 불러오는데 실패했습니다.');
         }
-        const data = await response.json();
-        setAllKeywords(data.keywords.map((keyword: string) => ({ value: keyword, label: keyword })));
+        if (!tagsResponse.ok) {
+          throw new Error('태그를 불러오는데 실패했습니다.');
+        }
+
+        const keywordsData = await keywordsResponse.json();
+        const tagsData = await tagsResponse.json();
+
+        setAllKeywords(keywordsData.keywords.map((keyword: string) => ({ value: keyword, label: keyword })));
+        setAllTags(tagsData.tags.map((tag: string) => ({ value: tag, label: tag })));
       } catch (error) {
-        console.error('키워드를 불러오는 중 오류 발생:', error);
+        console.error('데이터를 불러오는 중 오류 발생:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchKeywords();
+    fetchData();
   }, []);
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -133,6 +151,53 @@ const AdminContent = () => {
     }
   };
 
+  const handleAddTag = async () => {
+    if (!newTag.trim()) return;
+    try {
+      const response = await fetch('/api/tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tag: newTag }),
+      });
+      if (response.ok) {
+        setAllTags([...allTags, { value: newTag, label: newTag }]);
+        setNewTag('');
+        showToast('태그가 추가되었습니다.', 'success');
+      } else {
+        throw new Error('태그 추가 실패');
+      }
+    } catch (error) {
+      console.error("태그 추가 중 오류 발생:", error);
+      showToast('태그 추가에 실패했습니다. 다시 시도해 주세요.', 'error');
+    }
+  };
+
+  const handleDeleteTag = async (tagToDelete: string) => {
+    try {
+      const response = await fetch(`/api/tags/${encodeURIComponent(tagToDelete)}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setAllTags(allTags.filter(t => t.value !== tagToDelete));
+        showToast('태그가 삭제되었습니다.', 'success');
+      } else {
+        throw new Error('태그 삭제 실패');
+      }
+    } catch (error) {
+      console.error("태그 삭제 중 오류 발생:", error);
+      showToast('태그 삭제에 실패했습니다. 다시 시도해 주세요.', 'error');
+    }
+  };
+
+  const handleTagKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
   if (isLoading) {
     return <div>로딩 중...</div>;
   }
@@ -171,6 +236,43 @@ const AdminContent = () => {
                 <button
                   className="text-red-500 hover:text-red-700"
                   onClick={() => handleDeleteKeyword(keyword.value)}
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border-t border-stroke px-7 py-4 dark:border-strokedark">
+          <h3 className="font-medium text-black dark:text-white">
+            태그 관리
+          </h3>
+        </div>
+        <div className="p-7">
+          <div className="mb-5.5 flex items-center">
+            <input
+              className="flex-grow rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
+              type="text"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={handleTagKeyPress}
+              placeholder="새 태그 입력"
+            />
+            <button
+              className="ml-2 whitespace-nowrap rounded bg-primary px-4 py-3 font-medium text-gray hover:bg-opacity-90"
+              onClick={handleAddTag}
+            >
+              추가
+            </button>
+          </div>
+          <ul className="mt-4">
+            {allTags.map((tag) => (
+              <li key={tag.value} className="flex justify-between items-center mb-2 py-2 border-b border-stroke dark:border-strokedark">
+                <span>{tag.label}</span>
+                <button
+                  className="text-red-500 hover:text-red-700"
+                  onClick={() => handleDeleteTag(tag.value)}
                 >
                   삭제
                 </button>

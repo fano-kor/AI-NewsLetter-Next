@@ -26,7 +26,7 @@ export default function LoginPage() {
         const data = await response.json();
         // 토큰을 쿠키에 저장
         Cookies.set('token', data.token, { expires: 7 }); // 7일 동안 유효
-        router.push('/keyword-news');
+        router.push('/daily-summary');
       } else {
         const errorData = await response.json();
         setError(errorData.error || '로그인에 실패했습니다.');

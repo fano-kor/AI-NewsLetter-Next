@@ -6,22 +6,22 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Select from 'react-select';
 import axios from 'axios';
 
-interface Keyword {
+interface Tag {
   value: string;
   label: string;
 }
 
 interface User {
   name: string;
-  interestKeywords: string[];
+  interestTags: string[];
   aiPrompt: string;
   emailScheduleDays: string[];
   emailScheduleTime: string;
   isSubscribed: boolean;
 }
 
-interface KeywordsResponse {
-  keywords: string[];
+interface TagsResponse {
+  tags: string[];
 }
 
 const fetchUser = async (): Promise<User> => {
@@ -33,7 +33,7 @@ const fetchUser = async (): Promise<User> => {
   };
 };
 
-const fetchKeywords = async (): Promise<KeywordsResponse> => {
+const fetchKeywords = async (): Promise<TagsResponse> => {
   const response = await fetch('/api/keywords');
   if (!response.ok) throw new Error('키워드를 불러오는데 실패했습니다.');
   return response.json();
@@ -66,13 +66,13 @@ const SettingsContent = () => {
     queryKey: ['user'],
     queryFn: fetchUser
   });
-  const { data: keywordsData, isLoading: isKeywordsLoading } = useQuery<KeywordsResponse>({
-    queryKey: ['keywords'],
+  const { data: tagsData, isLoading: isTagsLoading } = useQuery<TagsResponse>({
+    queryKey: ['tags'],
     queryFn: fetchKeywords
   });
 
   const [name, setName] = useState('');
-  const [selectedKeywords, setSelectedKeywords] = useState<Keyword[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [emailScheduleDays, setEmailScheduleDays] = useState<string[]>([]);
   const [emailScheduleTime, setEmailScheduleTime] = useState('09:00');
@@ -83,7 +83,7 @@ const SettingsContent = () => {
   useEffect(() => {
     if (user) {
       setName(user.name || '');
-      setSelectedKeywords(user.interestKeywords?.map(keyword => ({ value: keyword, label: keyword })) || []);
+      setSelectedTags(user.interestTags?.map(tag => ({ value: tag, label: tag })) || []);
       setAiPrompt(user.aiPrompt || '');
       setEmailScheduleDays(user.emailScheduleDays || []);
       setEmailScheduleTime(user.emailScheduleTime || '09:00');
@@ -118,7 +118,7 @@ const SettingsContent = () => {
     e.preventDefault();
     updateUserMutation.mutate({
       name,
-      interestKeywords: selectedKeywords.map(keyword => keyword.value),
+      interestTags: selectedTags.map(tag => tag.value),
       aiPrompt,
       emailScheduleDays,
       emailScheduleTime,
@@ -137,11 +137,13 @@ const SettingsContent = () => {
     sendImmediateEmailMutation.mutate();
   };
 
-  if (isUserLoading || isKeywordsLoading) {
+  if (isUserLoading || isTagsLoading) {
     return <div>로딩 중...</div>;
   }
 
-  const keywordOptions: Keyword[] = keywordsData?.keywords.map(keyword => ({ value: keyword, label: keyword })) || [];
+  // const keywordOptions: Keyword[] = keywordsData?.keywords.map(keyword => ({ value: keyword, label: keyword })) || [];
+  //#################### 나중에 꼭 키워드 데이터 조회 후 추가하기 ####################
+  const tagOptions: Tag[] = ['IT', '정치', '경제', '사회', '문화', '국제'].map(tag => ({ value: tag, label: tag }));
 
   return (
     <div className="mx-auto max-w-270">
@@ -171,19 +173,19 @@ const SettingsContent = () => {
                 className="mb-3 block text-sm font-medium text-black dark:text-white"
                 htmlFor="keywords"
               >
-                관심 키워드
+                관심 주제
               </label>
               <Select
                 isMulti
-                name="keywords"
-                options={keywordOptions}
+                name="tag"
+                options={tagOptions}
                 className="basic-multi-select"
                 classNamePrefix="select"
-                value={selectedKeywords}
-                onChange={(newValue) => setSelectedKeywords(newValue as Keyword[])}
+                value={selectedTags}
+                onChange={(newValue) => setSelectedTags(newValue as Tag[])}
               />
             </div>
-            <div className="mb-5.5">
+            {/* <div className="mb-5.5">
               <label
                 className="mb-3 block text-sm font-medium text-black dark:text-white"
                 htmlFor="aiPrompt"
@@ -199,7 +201,7 @@ const SettingsContent = () => {
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="AI 요약을 위한 프롬프트를 입력하세요"
               ></textarea>
-            </div>
+            </div> */}
             <div className="mb-5.5">
               <label
                 className="mb-3 block text-sm font-medium text-black dark:text-white"
@@ -227,13 +229,21 @@ const SettingsContent = () => {
               >
                 이메일 수신 시각
               </label>
-              <input
+              {/* <input
                 className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                 type="time"
                 name="emailScheduleTime"
                 id="emailScheduleTime"
                 value={emailScheduleTime}
                 onChange={(e) => setEmailScheduleTime(e.target.value)}
+              /> */}
+              <input
+                className="w-full rounded border border-stroke bg-gray-100 px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white cursor-not-allowed"
+                type="time"
+                name="emailScheduleTime"
+                id="emailScheduleTime"
+                value="08:00"
+                disabled
               />
             </div>
             <div className="mb-5.5">

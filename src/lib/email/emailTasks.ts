@@ -3,39 +3,110 @@
 import prisma from '@/lib/prisma';
 import cron from 'node-cron';
 import { createDailySummary } from '@/lib/ai/news-summarizer';
+import { marked } from 'marked';
 import { sendEmail } from '@/lib/emailer';
 
-export async function sendEmailsFromQueue() {
-  const emailsToSend = await prisma.emailQueue.findMany({
+export async function sendEmailToUser(user: any) {
+  try {
+    const today = new Date();
+    today.setHours(6, 0, 0, 0);  // 오늘 06시
+
+    const summaries = await prisma.dailySummary.findMany({
+      where: {
+        tag: {
+          in: user.interestTags
+        },
+        date: today
+      },
+      select: {
+        tag: true,
+        summary: true,
+      },
+      orderBy: {
+        date: 'desc'
+      },
+      distinct: ['tag']
+    });
+
+    if (summaries.length === 0) {
+      throw new Error('해당 키워드의 요약이 없습니다.');
+    }
+
+    // 키워드별 요약을 마크다운 형식으로 구성
+    const markdownContent = summaries.map(item => `
+## ${item.tag} 뉴스
+${item.summary}
+    `).join('\n\n');
+
+    // 마크다운을 HTML로 변환
+    const htmlContent = marked(markdownContent);
+
+    // 이메일 스타일 추가
+    const styledHtmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+            h2 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
+            a { color: #3498db; }
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+        </body>
+      </html>
+    `;
+    const subject = "오늘의 AI 뉴스 큐레이션";
+    // 이메일 전송
+    await sendEmail(user.email, subject, styledHtmlContent);
+
+    // 이메일 큐에 기록
+    await prisma.emailQueue.create({
+      data: {
+        recipient: user.email,
+        subject: subject,
+        body: styledHtmlContent,
+        status: 'SENT',
+        sentAt: new Date()
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('이메일 발송 중 오류:', error);
+    throw error;
+  }
+}
+
+// sendEmails 함수 수정
+export async function sendEmails() {
+  const today = new Date();
+  const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today.getDay()];
+
+  const users = await prisma.users.findMany({
     where: {
-      status: 'PENDING'
+      isSubscribed: true,
+      emailScheduleDays: {
+        has: dayOfWeek
+      }
     },
-    take: 50 // 한 번에 최대 50개의 이메일 처리
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      interestTags: true,
+      emailScheduleTime: true
+    }
   });
 
-  for (const email of emailsToSend) {
-    try {
-      await sendEmail(email.recipient, email.subject, email.body);
-      await prisma.emailQueue.update({
-        where: { id: email.id },
-        data: { status: 'SENT', sentAt: new Date() }
-      });
-    } catch (error) {
-      console.error('메일 발송 중 오류 발생:', error);
-      console.error('에러 스택 트레이스:', error instanceof Error ? error.stack : '스택 트레이스를 사용할 수 없습니다.');
-      
-      let failureReason = '알 수 없는 오류';
-      if (error instanceof Error) {
-        failureReason = `${error.name}: ${error.message}\n${error.stack}`;
-      }
+  console.log(`발송 대상 사용자 수: ${users.length}`);
 
-      await prisma.emailQueue.update({
-        where: { id: email.id },
-        data: { 
-          status: 'FAILED', 
-          failureReason: failureReason
-        }
-      });
+  for (const user of users) {
+    try {
+      await sendEmailToUser(user);
+      console.log(`이메일 발송 성공: ${user.email}`);
+    } catch (error) {
+      console.error(`이메일 발송 실패 (${user.email}):`, error);
     }
   }
 }
@@ -68,7 +139,7 @@ export async function initializeScheduler() {
   cron.schedule(SEND_MAIL_CRON, async () => {  
     //console.log(`이메일 발송 실행 : ${EMAIL_SEND_CRON}`);
     try {
-      await sendEmailsFromQueue();
+      await sendEmails();
       //console.log('이메일 발송이 완료되었습니다.');
     } catch (error) {
       console.error('이메일 발송 중 오류 발생:', error);

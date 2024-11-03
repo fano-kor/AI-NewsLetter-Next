@@ -1,7 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["tracing"]
-  log = ["query", "info", "warn", "error"]
+  log             = ["query", "info", "warn", "error"]
 }
 
 datasource db {
@@ -39,7 +39,7 @@ model Users {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   aiPrompt          String?  @map("ai_prompt")
-  interestKeywords  String[] @default([]) @map("interest_keywords")
+  interestTags      String[] @default([]) @map("interest_tags")
   isAdmin           Boolean  @default(false) @map("is_admin")
   emailScheduleDays String[] @default([]) @map("email_schedule_days")
   emailScheduleTime String?  @map("email_schedule_time")
@@ -67,28 +67,51 @@ model News {
 }
 
 model Keywords {
-  id        String   @id @default(cuid())
-  keyword   String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime? @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  keyword       String    @unique
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
   lastCrawledAt DateTime? @map("last_crawled_at")
 
   @@map("keywords")
 }
 
+model Tags {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("tags")
+}
+
 model EmailQueue {
-  id            Int       @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   recipient     String
   subject       String
-  body          String    @db.Text
+  body          String
   status        EmailStatus @default(PENDING)
-  failureReason String? @map("failure_reason")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  sentAt        DateTime? @map("sent_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  failureReason String?     @map("failure_reason")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  sentAt        DateTime?   @map("sent_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("email_queue")
+}
+
+model DailySummary {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  tag       String
+  summary   String
+  newsCount Int      @map("news_count")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, tag])
+  @@index([date, tag])
+  @@map("daily_summary")
 }
 
 enum EmailStatus {
@@ -97,18 +120,4 @@ enum EmailStatus {
   FAILED
 
   @@map("email_status")
-}
-
-model DailySummary {
-  id          Int      @id @default(autoincrement())
-  date        DateTime // 일자
-  keyword     String   // 키워드
-  summary     String   @db.Text // 요약 내용
-  newsCount   Int      @map("news_count") // 해당 일자의 뉴스 수
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@unique([date, keyword])
-  @@index([date, keyword])
-  @@map("daily_summary")
 }

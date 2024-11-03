@@ -7,6 +7,8 @@ import axios from 'axios';
 import { debounce } from 'lodash';
 import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface News {
   id: number;
@@ -26,10 +28,10 @@ interface NewsResponse {
 
 interface NewsBaseProps {
   title: string;
-  keyword?: string;
+  tag?: string;
 }
 
-const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
+const NewsBase: React.FC<NewsBaseProps> = ({ title, tag }) => {
   const [news, setNews] = useState<News[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
@@ -46,38 +48,31 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchNews = useCallback(async (search: string) => {
-    setLoading(true);
-    setShowLoading(false);
-    setError(null);
-
-    loadingTimerRef.current = setTimeout(() => {
-      setShowLoading(true);
-    }, 2000);
-
+  const fetchNews = async (search: string) => {
     try {
-      const url = new URL('/api/news', window.location.origin);
-      url.searchParams.append('page', currentPage.toString());
-      url.searchParams.append('limit', itemsPerPage.toString());
-      url.searchParams.append('search', search);
-      if (keyword) {
-        url.searchParams.append('keyword', keyword);
-      }
+      setLoading(true);
+      setShowLoading(false);
+      setError(null);
 
-      console.log('Fetching URL:', url.toString()); // 디버깅을 위해 URL 로깅
+      loadingTimerRef.current = setTimeout(() => {
+        setShowLoading(true);
+      }, 2000);
 
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error('뉴스 데이터를 가져오는 데 실패했습니다.');
-      const data: NewsResponse = await response.json();
-      setNews(prevNews => {
-        if (JSON.stringify(prevNews) !== JSON.stringify(data.news)) {
-          return data.news;
-        }
-        return prevNews;
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...(search && { search }),
+        ...(tag && { tag })
       });
+
+      const response = await fetch(`/api/news?${params}`);
+      if (!response.ok) throw new Error('뉴스를 불러오는데 실패했습니다.');
+      const data = await response.json();
+      setNews(data.news);
       setTotalCount(data.totalCount);
     } catch (error) {
-      setError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
+      console.error('뉴스 데이터 로딩 중 오류:', error);
+      setError('뉴스를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
       setShowLoading(false);
@@ -85,23 +80,19 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
         clearTimeout(loadingTimerRef.current);
       }
     }
-  }, [currentPage, itemsPerPage, keyword]);
+  };
 
   const debouncedFetchNews = useMemo(
-    () => debounce((search: string) => fetchNews(search), 1000),
-    [fetchNews]
+    () => debounce((search: string) => fetchNews(search), 500),
+    [tag, currentPage, itemsPerPage]
   );
 
   useEffect(() => {
-    console.log('Current keyword:', keyword); // 디버깅을 위해 현재 keyword 로깅
     debouncedFetchNews(searchTerm);
     return () => {
       debouncedFetchNews.cancel();
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-      }
     };
-  }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage, keyword]);
+  }, [debouncedFetchNews, searchTerm, tag, currentPage, itemsPerPage]);
 
   const CriticalLevelCell = ({ row }: { row: News }) => {
     console.log("Formatting criticalLevel for row:", row);
@@ -114,6 +105,15 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
     return <>{row.tags?.join(', ') || ''}</>;
   };
 
+  const DateFormatter = ({ row }: { row: News }) => {
+    const date = new Date(row.publishedAt);
+    return (
+      <div className="text-sm">
+        {format(date, 'yyyy-MM-dd HH:mm', { locale: ko })}
+      </div>
+    );
+  };
+
   const columns = useMemo(() => {
     console.log("Columns being created");
     return [
@@ -122,8 +122,13 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
       { key: 'content', name: '내용', width: 500 },
       { key: 'tags', name: '태그', renderCell: ({ row }: { row: News }) => row.tags?.join(', ') || '' },
       { key: 'criticalLevel', name: '민감도', renderCell: CriticalLevelCell },
-      { key: 'publishedAt', name: '발행일' },
-      { key: 'summary', name: '요약', width: 300 },
+      {
+        key: 'publishedAt',
+        name: '발행일',
+        width: 150,
+        renderCell: DateFormatter
+      },
+      // { key: 'summary', name: '요약', width: 300 },
     ];
   }, []);
 
@@ -185,7 +190,9 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
           </h4>
           <button
             onClick={handleAISummarize}
-            disabled={summarizing || selectedRows.size === 0}
+            // disabled={summarizing || selectedRows.size === 0}
+            disabled={true}
+            title="현재는 유료API 사용으로 내부 BCGPT전환 시 이용가능 합니다."
             className="px-4 py-2 bg-primary text-white rounded hover:bg-opacity-90 disabled:opacity-50"
           >
             {summarizing ? 'AI 요약 중...' : 'AI 요약'} 

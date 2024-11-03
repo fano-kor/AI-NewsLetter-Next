@@ -64,7 +64,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function getUser() {
   const token = cookies().get('token')?.value;
-  
+  //console.log('## getUser.token', token);
   if (!token) {
     return null;
   }
@@ -73,7 +73,7 @@ export async function getUser() {
   if (!decoded) {
     return null;
   }
-
+  //console.log('## getUser.decoded', decoded);
   try {
     const user = await prisma.users.findUnique({ 
       where: { id: decoded.userId },
@@ -86,7 +86,7 @@ export async function getUser() {
         createdAt: true,
         updatedAt: true,
         aiPrompt: true,
-        interestKeywords: true,
+        interestTags: true,
         emailScheduleDays: true,
         emailScheduleTime: true,
         isSubscribed: true,
@@ -97,9 +97,7 @@ export async function getUser() {
     }
 
     user.aiPrompt = user.aiPrompt === "" ? process.env.DEFAULT_AI_PROMPT ?? null : user.aiPrompt;
-
-    console.log(user.aiPrompt);
-
+    //console.log('## getUser.user', user);
     return user;
   } catch (error) {
     console.error('사용자 정보 조회 오류:', error);

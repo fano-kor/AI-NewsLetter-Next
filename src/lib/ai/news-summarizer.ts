@@ -234,15 +234,15 @@ export async function createDailySummary(date: Date) {
     //const endOfDay = new Date(date.setHours(23, 59, 59, 999));
     const endOfDay = new Date()
 
-    const keywords = await prisma.keywords.findMany();
+    const tags = await prisma.tags.findMany();
     //const keywords = [{"keyword":"경제"}]
 
-    for (const { keyword } of keywords) {
+    for (const { tag } of tags) {
       // 해당 키워드와 일자의 뉴스를 조회
       const news = await prisma.news.findMany({
         where: {
           AND: [
-            { keywords: { has: keyword } },
+            { tags: { has: tag } },
             {
               publishedAt: {
                 gte: startOfDay,
@@ -263,10 +263,52 @@ export async function createDailySummary(date: Date) {
         const newsString = JSON.stringify(news);
         
         // AI를 사용하여 일간 요약 생성
-        const prompt = `# 뉴스 트렌드 분석 및 트윗 요약 생성기
+        const prompt = `입력 데이터 형식:
+{
+  "title": "뉴스 제목",
+  "content": "뉴스 본문",
+  "url": "뉴스 URL"
+}
+뉴스 선별 규칙:
+1. 제공된 뉴스를 3-5개의 핵심 주제로 그룹화 
+2. 각 기사는 가장 연관성 높은 하나의 주제로 분류 
+
+요약 규칙:
+1. 시작은 《${tag}》로 시작 
+2. 각 뉴스는 이모지(➖)로 시작하고 이모지와 뉴스 사이에는 공백 추가
+3. 제목과 내용은 '...'으로 구분
+4. 주요 내용은 쉼표(,)로 구분
+5. 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조 
+6. 뉴스 성격에 맞는 이모지를 제목 앞에 배치
+7. 뉴스 내용에 적합한 이모지를 내용 내에 1-2개 추가. 
+8. 전체 길이는 200자 이내로 제한
+
+이모지 사용 가이드:
+- 경제/금융: 📈 📉 💹 💰 💲 
+- 산업/제조: 🏭 🔧 ⚙️ 🚗
+- 에너지/환경: ⚡ 🔋 ☢️ 🌱
+- 무역/수출: 🚢 ✈️ 📦 🌐
+- 증감/변화: ⬆️ ⬇️ ↗️ ↘️
+- 위험/주의: ⚠️ 🚨 ❗
+- 긍정/호재: 📈 💪 ⭐
+- 부정/악재: 📉 💥 ⚡
+
+예시 결과:
+➖🔋⚡ 체코 협상단 내달 방한…美·佛 흔들기에도 원전 협상 '계속'...'60여명' 대표단 찾아 본계약 협상 진행, 한국형 원전 운영·건설현장 시찰도, 체코 반독점당국 '90일' 조사 개시
+➖🐮💰 소고기값 좀 싸지려나? 프랑스산 소고기 곧 수입...'2026년' 수입산 소고기 관세 철폐, 한우농가 소 1마리당 수익성 '-140만원'⬇️, 한우 농가 "교역 희생양" 우려
+
+위 형식과 규칙에 맞춰 입력된 뉴스를 요약. 특히 다음 사항에 유의:
+1. '%', '억원', '만원' 등의 수치는 반드시 포함
+2. 증감을 나타내는 수치 앞에는 방향 이모지 추가 (예: 5%⬆️ 3%⬇️) 
+3. 연도나 날짜는 작은따옴표로 강조
+4. 금액이나 수량은 큰따옴표로 강조`
+
+
+
+        const prompt_bck = `# 뉴스 트렌드 분석 및 트윗 요약 생성기
 
 ## 입력 데이터
-- 분석 영역: ${keyword}
+- 분석 영역: ${tag}
 - 뉴스 기사 수: ${news.length}개
 - 데이터 형식: JsonArray
 
@@ -297,7 +339,7 @@ export async function createDailySummary(date: Date) {
 • [뉴스 제목 2] URL
 
 ### 3. 종합 요약 트윗
-📊 ${keyword} 트렌드 종합
+📊 ${tag} 트렌드 종합
 [전체 분석 핵심 메시지]
 #해시태그1 #해시태그2 #해시태그3
 
@@ -322,14 +364,14 @@ export async function createDailySummary(date: Date) {
 - 이모지가 문맥에 맞게 사용됨`;
 
 const aa=`
-${keyword} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따라 트위터 형식으로 분석하고 요약해 주세요. 각 뉴스 기사에 대해 제목, 내용 요약, URL이 제공될 것입니다.
+${tag} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따라 트위터 형식으로 분석하고 요약해 주세요. 각 뉴스 기사에 대해 제목, 내용 요약, URL이 제공될 것입니다.
 
 1. 뉴스 분석 및 그룹화:
    - ${news.length}개의 기사를 분석하고 최대 5개의 주요 주제로 그룹화하세요.
    - 각 뉴스 기사를 가장 관련성 높은 주제에 포함시키세요.
 
 2. 요약 구조:
-   - <<${keyword}>>
+   - <<${tag}>>
    - 각 주제에 대해 3개의 연결된 트윗을 작성하세요.
    - 요약을 마무리하는 트윗을 작성하세요.
 
@@ -389,14 +431,14 @@ ${keyword} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따
         // DailySummary 생성 또는 업데이트
         await prisma.dailySummary.upsert({
           where: {
-            date_keyword: {
+            date_tag: {
               date: summaryDate,
-              keyword
+              tag
             }
           },
           create: {
             date: summaryDate,
-            keyword,
+            tag,
             summary: content,
             newsCount: news.length
           },
@@ -418,7 +460,7 @@ ${keyword} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따
   }
 }
 
-export async function getDailySummaries(date: string | null, keyword: string | null) {
+export async function getDailySummaries(date: string | null, category: string | null) {
   try {
     const startOfDay = new Date(date || new Date());
     startOfDay.setHours(0, 0, 0, 0);
@@ -433,14 +475,14 @@ export async function getDailySummaries(date: string | null, keyword: string | n
       }
     };
 
-    if (keyword) {
-      where.keyword = keyword;
+    if (category) {
+      where.category = category;
     }
 
     const summaries = await prisma.dailySummary.findMany({
       where,
       orderBy: {
-        keyword: 'asc'
+        tag: 'asc'
       }
     });
 
