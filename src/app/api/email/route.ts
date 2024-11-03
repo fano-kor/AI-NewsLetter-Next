@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { getUser } from '@/lib/auth';
 import { subHours } from 'date-fns';
 import { marked } from 'marked';

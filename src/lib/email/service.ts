@@ -1,9 +1,8 @@
 'use server'; 
 
-import { PrismaClient, EmailStatus } from '@prisma/client';
+import { EmailStatus } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { sendEmail, generateEmailContent } from './utils';
-
-const prisma = new PrismaClient();
 
 export async function scheduleEmails() {
   const now = new Date();

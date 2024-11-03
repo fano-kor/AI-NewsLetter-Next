@@ -232,10 +232,10 @@ export async function createDailySummary(date: Date) {
     startOfDay.setDate(startOfDay.getDate() - 1)
     startOfDay.setHours(6, 0, 0, 0);
     //const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-    const endOfDay = new Date();
+    const endOfDay = new Date()
 
-    //const keywords = await prisma.keywords.findMany();
-    const keywords = [{"keyword":"경제"}]
+    const keywords = await prisma.keywords.findMany();
+    //const keywords = [{"keyword":"경제"}]
 
     for (const { keyword } of keywords) {
       // 해당 키워드와 일자의 뉴스를 조회
@@ -383,16 +383,19 @@ ${keyword} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따
 
         console.log('content: ', content);
 
+        const summaryDate = new Date()
+        summaryDate.setHours(6, 0, 0, 0);
+
         // DailySummary 생성 또는 업데이트
         await prisma.dailySummary.upsert({
           where: {
             date_keyword: {
-              date: startOfDay,
+              date: summaryDate,
               keyword
             }
           },
           create: {
-            date: startOfDay,
+            date: summaryDate,
             keyword,
             summary: content,
             newsCount: news.length
