@@ -1,3 +1,5 @@
+'use server';
+
 import { Users } from '@prisma/client';
 
 export async function sendEmail(recipient: string, subject: string, body: string): Promise<void> {

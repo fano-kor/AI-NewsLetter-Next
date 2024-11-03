@@ -27,6 +27,7 @@ function BCDataGrid<R, SR = unknown, K extends React.Key = React.Key>({
     <div className={`relative h-full ${containerClassName || ''}`}>
       <DataGrid
         {...props}
+        columns={props.columns} // Ensure columns are passed correctly
         className={gridClassNames.grid}
         rowClass={gridClassNames.row}
       />

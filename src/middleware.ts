@@ -1,36 +1,50 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isTokenValid } from '@/lib/auth';
+import { isTokenValid } from '@/lib/tokenVerifier';
 
 export async function middleware(request: NextRequest) {
-  console.log('middleware');
   const { pathname } = request.nextUrl;
   
-  // 토큰 검증이 필요 없는 경로들
-  const publicPaths = ['/login', '/signup', '/api/auth/login', '/api/auth/register'];
+  // 퍼블릭 경로는 검증 제외
+  const publicPaths = [
+    '/login', 
+    '/signup', 
+    '/api/auth/login', 
+    '/api/auth/register',
+    '/api/public'
+  ];
   
   if (publicPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // 외부 API 경로에 대한 처리는 제외 (자체 인증 로직 사용)
-  if (pathname.startsWith('/api/public')) {
-    return NextResponse.next();
-  }
-
-  // 내부 API 및 웹 페이지에 대한 처리
   const token = request.cookies.get('token')?.value;
-
   if (!token) {
+    // API 요청인 경우 401 응답
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' }, 
+        { status: 401 }
+      );
+    }
+    // 페이지 요청인 경우 로그인 페이지로 리다이렉트
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // 토큰 유효성 검증
   const isValid = await isTokenValid(token);
   if (!isValid) {
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json(
+        { error: '유효하지 않은 토큰입니다.' }, 
+        { status: 401 }
+      );
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (pathname == '/') {
+  // 루트 경로 리다이렉트
+  if (pathname === '/') {
     return NextResponse.redirect(new URL('/keyword-news', request.url));
   }
 
@@ -38,5 +52,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    // 정적 파일과 특정 API 경로 제외
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };

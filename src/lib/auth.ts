@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import * as jose from 'jose';
 import prisma from '@/lib/prisma';  // 전역 Prisma 인스턴스 import
 
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+const SECRET_KEY = new TextEncoder().encode(
+  process.env.JWT_SECRET_KEY || 'default_secret_key_for_development'
+);
 
 export async function verifyPassword(email: string, password: string): Promise<{ userId: string } | null> {
   try {
@@ -21,14 +23,14 @@ export async function verifyPassword(email: string, password: string): Promise<{
 }
 
 export async function isTokenValid(token: string): Promise<boolean> {
-  try {console.log('11');
+  try {
     await jose.jwtVerify(token, SECRET_KEY, {
       algorithms: ['HS256'],
-    });console.log('22');
-    return true;
+    })
+    return true
   } catch (error) {
-    console.error('토큰 검증 오류:', error);
-    return false;
+    console.error('토큰 검증 오류:', error)
+    return false
   }
 }
 

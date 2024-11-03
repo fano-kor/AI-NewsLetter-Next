@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["tracing"]
+  log = ["query", "info", "warn", "error"]
 }
 
 datasource db {
@@ -58,6 +60,8 @@ model News {
   keywords       String[]
   crawledAt      DateTime? @map("crawled_at")
   thumbnailImage Bytes?    @map("thumbnail_image")
+  tags           String[]
+  criticalLevel  String?   @map("critical_level")
 
   @@map("news")
 }
@@ -67,7 +71,8 @@ model Keywords {
   keyword   String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  lastCrawledAt DateTime? @map("last_crawled_at")
 
   @@map("keywords")
 }
@@ -92,4 +97,18 @@ enum EmailStatus {
   FAILED
 
   @@map("email_status")
+}
+
+model DailySummary {
+  id          Int      @id @default(autoincrement())
+  date        DateTime // 일자
+  keyword     String   // 키워드
+  summary     String   @db.Text // 요약 내용
+  newsCount   Int      @map("news_count") // 해당 일자의 뉴스 수
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, keyword])
+  @@index([date, keyword])
+  @@map("daily_summary")
 }

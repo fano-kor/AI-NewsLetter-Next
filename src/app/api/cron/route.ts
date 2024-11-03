@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { startMailScheduler } from '@/lib/mailScheduler';
+import { startEmailScheduler } from '@/lib/emailScheduler';
 
 export async function GET() {
-  startMailScheduler();
+  startEmailScheduler();
   return NextResponse.json({ message: 'Mail scheduler started' });
 }
 

@@ -1,14 +1,28 @@
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+const prisma = new PrismaClient().$extends({
+  query: {
+    $allModels: {
+      async $allOperations({ operation, model, args, query }) {
+        const startTime = Date.now()
+        const result = await query(args)
+        const duration = Date.now() - startTime
+        
+        if (process.env.NODE_ENV === 'production') {
+          console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            event: 'prisma:query',
+            model,
+            operation,
+            duration: `${duration}ms`
+          }))
+        }
+        return result
+      }
+    }
+  }
+})
 
 export default prisma
 

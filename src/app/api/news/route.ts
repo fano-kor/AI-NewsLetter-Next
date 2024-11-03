@@ -13,6 +13,15 @@ export async function GET(request: Request) {
   try {
     const [news, totalCount] = await Promise.all([
       prisma.news.findMany({
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          url: true,
+          publishedAt: true,
+          tags: true,
+          criticalLevel: true
+        },
         where: {
           AND: [
             keyword ? { keywords: { has: keyword } } : {},
@@ -25,7 +34,8 @@ export async function GET(request: Request) {
           ],
         },
         orderBy: {
-          publishedAt: 'desc'
+          //publishedAt: 'desc'
+          tags: 'asc'
         },
         skip,
         take: limit

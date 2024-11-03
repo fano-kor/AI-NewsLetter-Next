@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getNewsWithoutSummary } from '@/lib/ai/news-summarizer';
 import { Prisma } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('news.jsonl') as File;
+    // JSON 배열을 직접 파싱
+    const newsArray = await request.json();
 
-    if (!file) {
-      return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 });
+    if (!Array.isArray(newsArray)) {
+      return NextResponse.json({ error: '유효하지 않은 데이터 형식입니다.' }, { status: 400 });
     }
-
-    const fileContent = await file.text();
-    const lines = fileContent.split('\n');
 
     let createdCount = 0;
     let updatedCount = 0;
 
-    for (const line of lines) {
-      if (line.trim() === '') continue;
-      
-      const article = JSON.parse(line);
-      
+    for (const article of newsArray) {
       console.log("##########################");
       console.log(article);
       console.log("##########################");

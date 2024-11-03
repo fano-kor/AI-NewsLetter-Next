@@ -17,6 +17,13 @@ export default function RootLayout({
 }) {
   const [queryClient] = useState(() => new QueryClient())
 
+  // useEffect(() => {
+  //   fetch('/api/scheduler')
+  //     .then(response => response.json())
+  //     .then(data => console.log('스케줄러 초기화:', data))
+  //     .catch(error => console.error('스케줄러 초기화 오류:', error));
+  // }, []);
+
   return (
     <html lang="en">
       <body>

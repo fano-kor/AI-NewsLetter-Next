@@ -69,6 +69,22 @@ const AdminContent = () => {
     }
   };
 
+  const handleSummarizeNews = async () => {
+    try {
+      const response = await fetch('/api/ai/summarize', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        showToast('뉴스 요약 및 태그 분류가 완료되었습니다.', 'success');
+      } else {
+        throw new Error('뉴스 요약 실패');
+      }
+    } catch (error) {
+      console.error("뉴스 요약 중 오류 발생:", error);
+      showToast('뉴스 요약에 실패했습니다. 다시 시도해 주세요.', 'error');
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -92,6 +108,28 @@ const AdminContent = () => {
       console.error("키워드 삭제 중 오류 발생:", error);
       console.log('Showing toast for delete keyword error');
       showToast('키워드 삭제에 실패했습니다. 다시 시도해 주세요.', 'error');
+    }
+  };
+
+  const handleCreateDailySummary = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+      const response = await fetch('/api/daily-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ date: today }),
+      });
+      
+      if (response.ok) {
+        showToast('일간 요약이 생성되었습니다.', 'success');
+      } else {
+        throw new Error('일간 요약 생성 실패');
+      }
+    } catch (error) {
+      console.error("일간 요약 생성 중 오류 발생:", error);
+      showToast('일간 요약 생성에 실패했습니다. 다시 시도해 주세요.', 'error');
     }
   };
 
@@ -139,8 +177,37 @@ const AdminContent = () => {
               </li>
             ))}
           </ul>
-        </div>    
+        </div>
+
+        <div className="border-t border-stroke px-7 py-4 dark:border-strokedark">
+          <h3 className="font-medium text-black dark:text-white">
+            일간 요약 관리
+          </h3>
+        </div>
+        <div className="p-7">
+          <button
+            className="w-full rounded bg-primary px-4 py-3 font-medium text-white hover:bg-opacity-90"
+            onClick={handleCreateDailySummary}
+          >
+            오늘의 일간 요약 생성
+          </button>
+        </div>
+
+        <div className="border-t border-stroke px-7 py-4 dark:border-strokedark">
+          <h3 className="font-medium text-black dark:text-white">
+            뉴스 요약 관리
+          </h3>
+        </div>
+        <div className="p-7">
+          <button
+            className="w-full rounded bg-secondary px-4 py-3 font-medium text-white hover:bg-opacity-90"
+            onClick={handleSummarizeNews}
+          >
+            뉴스 요약 및 태그 분류 실행
+          </button>
+        </div>
       </div>
+
       {toast.show && (
         <Toast
           message={toast.message}

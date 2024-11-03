@@ -1,5 +1,7 @@
+'use server'; 
+
 import { PrismaClient, EmailStatus } from '@prisma/client';
-import { sendEmail, generateEmailContent } from '@/app/api/scheduler/email/utils';
+import { sendEmail, generateEmailContent } from './utils';
 
 const prisma = new PrismaClient();
 

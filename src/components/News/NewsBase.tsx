@@ -14,6 +14,9 @@ interface News {
   content: string;
   url: string;
   publishedAt: string;
+  summary?: string;
+  tags?: string[];
+  criticalLevel?: string;
 }
 
 interface NewsResponse {
@@ -100,12 +103,29 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
     };
   }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage, keyword]);
 
-  const columns = useMemo(() => [
-    SelectColumn,
-    { key: 'title', name: '제목' },
-    { key: 'content', name: '내용', width: 500 },
-    { key: 'publishedAt', name: '발행일' }
-  ], []);
+  const CriticalLevelCell = ({ row }: { row: News }) => {
+    console.log("Formatting criticalLevel for row:", row);
+    const level = row.criticalLevel;
+    const color = level === '크리티컬' ? 'text-red-500' : level === '영향' ? 'text-orange-500' : 'text-green-500';
+    return <span className={`font-semibold ${color}`}>{level}</span>;
+  };
+
+  const TagsCell = ({ row }: { row: News }) => {
+    return <>{row.tags?.join(', ') || ''}</>;
+  };
+
+  const columns = useMemo(() => {
+    console.log("Columns being created");
+    return [
+      SelectColumn,
+      { key: 'title', name: '제목' },
+      { key: 'content', name: '내용', width: 500 },
+      { key: 'tags', name: '태그', renderCell: ({ row }: { row: News }) => row.tags?.join(', ') || '' },
+      { key: 'criticalLevel', name: '민감도', renderCell: CriticalLevelCell },
+      { key: 'publishedAt', name: '발행일' },
+      { key: 'summary', name: '요약', width: 300 },
+    ];
+  }, []);
 
   const rowKeyGetter = (row: News) => row.id;
 
@@ -139,14 +159,14 @@ const NewsBase: React.FC<NewsBaseProps> = ({ title, keyword }) => {
         .filter((item) => selectedRows.has(item.id))
         .map(({ title, content, url }) => ({ title, content, url }));
 
-      const response = await axios.post('/api/ai/summarize', {
+      const response = await axios.post('/api/ai/letter', {
         news: selectedNews
       });
 
       setSummary(response.data.summary);
     } catch (error) {
       console.error('AI 뉴스 요약 중 오류 발생:', error);
-      alert('AI 뉴스 요약 중 오류가 발생했습니다.');
+      alert('AI 뉴 요약 중 오류가 발생했습니다.');
     } finally {
       setSummarizing(false);
     }

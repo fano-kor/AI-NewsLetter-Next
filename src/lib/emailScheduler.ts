@@ -1,16 +1,33 @@
-import cron from 'node-cron';
-import { scheduleEmails, sendScheduledEmails } from '@/app/api/scheduler/email/service';
+import { runEmailWorker } from './workerManager';
+
+let schedulerInterval: NodeJS.Timeout | null = null;
 
 export function startEmailScheduler() {
-  // 매 15분마다 이메일 스케줄링
-  cron.schedule('*/15 * * * *', async () => {
-    console.log('이메일 스케줄링 실행');
-    await scheduleEmails();
-  });
+  if (schedulerInterval) {
+    console.log('스케줄러가 이미 실행 중입니다.');
+    return;
+  }
 
-  // 매 분마다 예약된 이메일 발송
-  cron.schedule('* * * * *', async () => {
+  schedulerInterval = setInterval(async () => {
+    const now = new Date();
+    const minutes = now.getMinutes();
+
+    if (minutes % 15 === 0) {
+      console.log('이메일 스케줄링 실행');
+      await runEmailWorker('schedule');
+    }
+
     console.log('예약된 이메일 발송 실행');
-    await sendScheduledEmails();
-  });
+    await runEmailWorker('send');
+  }, 60 * 1000); // 매 1분마다 실행
+
+  console.log('이메일 스케줄러가 시작되었습니다.');
+}
+
+export function stopEmailScheduler() {
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+    schedulerInterval = null;
+    console.log('이메일 스케줄러가 중지되었습니다.');
+  }
 }
