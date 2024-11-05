@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
     '/signup', 
     '/api/auth/login', 
     '/api/auth/register',
+    '/api/auth/verify-email',
     '/api/public'
   ];
   
@@ -45,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
   // 루트 경로 리다이렉트
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/keyword-news', request.url));
+    return NextResponse.redirect(new URL('/daily-summary', request.url));
   }
 
   return NextResponse.next();

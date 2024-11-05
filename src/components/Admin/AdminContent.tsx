@@ -198,6 +198,31 @@ const AdminContent = () => {
     }
   };
 
+  const handleTagSummary = async (tag: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await fetch('/api/daily-summary/tag', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          date: today,
+          tag: tag 
+        }),
+      });
+      
+      if (response.ok) {
+        showToast(`${tag} 태그의 일간 요약이 생성되었습니다.`, 'success');
+      } else {
+        throw new Error('태그별 일간 요약 생성 실패');
+      }
+    } catch (error) {
+      console.error("태그별 일간 요약 생성 중 오류 발생:", error);
+      showToast('태그별 일간 요약 생성에 실패했습니다.', 'error');
+    }
+  };
+
   if (isLoading) {
     return <div>로딩 중...</div>;
   }
@@ -270,12 +295,20 @@ const AdminContent = () => {
             {allTags.map((tag) => (
               <li key={tag.value} className="flex justify-between items-center mb-2 py-2 border-b border-stroke dark:border-strokedark">
                 <span>{tag.label}</span>
-                <button
-                  className="text-red-500 hover:text-red-700"
-                  onClick={() => handleDeleteTag(tag.value)}
-                >
-                  삭제
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    className="text-blue-500 hover:text-blue-700 px-2 py-1 rounded"
+                    onClick={() => handleTagSummary(tag.value)}
+                  >
+                    요약
+                  </button>
+                  <button
+                    className="text-red hover:text-red-700 px-2 py-1 rounded"
+                    onClick={() => handleDeleteTag(tag.value)}
+                  >
+                    삭제
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

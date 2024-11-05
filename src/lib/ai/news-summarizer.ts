@@ -2,6 +2,7 @@
 
 import { getUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { startOfDay } from 'date-fns';
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const DEFAULT_AI_PROMPT = process.env.DEFAULT_AI_PROMPT;
@@ -15,6 +16,7 @@ async function callApi(prompt: string, newsString: string) {
 
   const data = {
     "model": "llama-3.1-sonar-large-128k-online",
+    //"model": "llama-3.1-70b-instruct",
     "messages": [
       {"role": "system", "content": prompt},
       {"role": "user", "content": newsString}
@@ -225,9 +227,9 @@ function parseJsonString(content: string): any {
   }
 }
 
-export async function createDailySummary(date: Date) {
+export async function createAllDailySummary(date: Date) {
   try {
-    // 해당 일자의 뉴스를 키워드별로 그룹화하여 가져옵니다
+    // 해당 일자의 뉴스를 태그별로 그룹화하여 가져옵니다
     const startOfDay = new Date();
     startOfDay.setDate(startOfDay.getDate() - 1)
     startOfDay.setHours(6, 0, 0, 0);
@@ -238,49 +240,123 @@ export async function createDailySummary(date: Date) {
     //const keywords = [{"keyword":"경제"}]
 
     for (const { tag } of tags) {
-      // 해당 키워드와 일자의 뉴스를 조회
-      const news = await prisma.news.findMany({
+      summarizeTag(tag, startOfDay, endOfDay)
+    }
+
+    console.log(`${date.toLocaleDateString()} 일간 요약 생성 완료`);
+  } catch (error) {
+    console.error('일간 요약 생성 중 오류 발생:', error);
+    throw new Error('일간 요약 생성 중 오류가 발생했습니다.');
+  }
+}
+
+export async function createDailySummary(date: Date) {
+  try {
+    // 해당 일자의 뉴스를 태그별로 그룹화하여 가져옵니다
+    const startOfDay = new Date();
+    startOfDay.setDate(startOfDay.getDate() - 1);
+    startOfDay.setHours(6, 0, 0, 0);
+    const endOfDay = new Date();
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 오늘자 일간 요약이 없는 태그를 조회합니다
+    const tags = await prisma.tags.findMany();
+
+    for (const { tag } of tags) {
+      const existingSummary = await prisma.dailySummary.findFirst({
         where: {
-          AND: [
-            { tags: { has: tag } },
-            {
-              publishedAt: {
-                gte: startOfDay,
-                lte: endOfDay
-              }
-            }
-          ]
+          date: {
+            gte: todayStart, // 오늘 시작 시간 이상
+            lte: todayEnd,   // 오늘 종료 시간 이하
+          },
+          tag: tag,
         },
         select: {
-          title: true,
-          content: true,
-        }
+          date: true,
+          tag: true
+        },
       });
+      
+      if (!existingSummary) {
+        await summarizeTag(tag, startOfDay, endOfDay); // 요약이 없는 경우에만 요약 생성
+      }
+    }
 
-      if (news.length === 0) continue;
+    console.log(`${date.toLocaleDateString()} 일간 요약 생성 완료`);
+  } catch (error) {
+    console.error('일간 요약 생성 중 오류 발생:', error);
+    throw new Error('일간 요약 생성 중 오류가 발생했습니다.');
+  }
+}
 
-      try {
-        const newsString = JSON.stringify(news);
-        
-        // AI를 사용하여 일간 요약 생성
-        const prompt = `입력 데이터 형식:
+export async function createTagSummary(tag:string) {
+  try {
+    // 해당 일자의 뉴스를 키워드별로 그룹화하여 가져옵니다
+    const startOfDay = new Date();
+    startOfDay.setDate(startOfDay.getDate() - 1)
+    startOfDay.setHours(6, 0, 0, 0);
+    //const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+    const endOfDay = new Date()
+
+    summarizeTag(tag, startOfDay, endOfDay)
+    
+    console.log(`${endOfDay.toLocaleDateString()} 일간 요약 생성 완료`);
+  } catch (error) {
+    console.error('일간 요약 생성 중 오류 발생:', error);
+    throw new Error('일간 요약 생성 중 오류가 발생했습니다.');
+  }
+}
+
+async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
+  
+  // 해당 키워드와 일자의 뉴스를 조회
+  const news = await prisma.news.findMany({
+    where: {
+      AND: [
+        { tags: { has: tag as string } },
+        {
+          publishedAt: {
+            gte: startOfDay,
+            lte: endOfDay
+          }
+        }
+      ]
+    },
+    select: {
+      title: true,
+      content: true,
+    }
+  });
+
+  if (news.length === 0) return false;
+
+  console.log("## news.length", news.length)
+
+  try {
+    const newsString = JSON.stringify(news);
+    
+    // AI를 사용하여 일간 요약 생성
+    const prompt = `입력 데이터 형식:
 {
   "title": "뉴스 제목",
   "content": "뉴스 본문",
   "url": "뉴스 URL"
 }
 뉴스 선별 규칙:
-1. 제공된 뉴스를 3-5개의 핵심 주제로 그룹화 
-2. 각 기사는 가장 연관성 높은 하나의 주제로 분류 
+1. 제공된 ${news.length}개의 뉴스를 3-5개의 핵심 주제로 선별
+2. 핵심 주제 별 기사 요약
 
 요약 규칙:
-1. 시작은 《${tag}》로 시작 
-2. 각 뉴스는 이모지(➖)로 시작하고 이모지와 뉴스 사이에는 공백 추가
-3. 제목과 내용은 '...'으로 구분
+1. 시작은 《${tag}》로 시작
+2. 각 주제는 이모지(➖)로 시작
+3. 제목과 내용은 '...'으로 구분하고 제목은 굵게 작성
 4. 주요 내용은 쉼표(,)로 구분
-5. 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조 
-6. 뉴스 성격에 맞는 이모지를 제목 앞에 배치
-7. 뉴스 내용에 적합한 이모지를 내용 내에 1-2개 추가. 
+5. 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조
+7. 뉴스 내용에 적합한 이모지를 내용 내에 추가
 8. 전체 길이는 200자 이내로 제한
 
 이모지 사용 가이드:
@@ -301,164 +377,45 @@ export async function createDailySummary(date: Date) {
 1. '%', '억원', '만원' 등의 수치는 반드시 포함
 2. 증감을 나타내는 수치 앞에는 방향 이모지 추가 (예: 5%⬆️ 3%⬇️) 
 3. 연도나 날짜는 작은따옴표로 강조
-4. 금액이나 수량은 큰따옴표로 강조`
+4. 금액이나 수량은 큰따옴표로 강조
+5. 내용 파악에 도움이 되는 이모지를 추가
+`
 
+    //console.log('AI 프롬프트:', prompt);
 
+    const content = await callApi(prompt, newsString); // callApi를 사용하여 요약 생성
 
-        const prompt_bck = `# 뉴스 트렌드 분석 및 트윗 요약 생성기
+    console.log('content: ', content);
 
-## 입력 데이터
-- 분석 영역: ${tag}
-- 뉴스 기사 수: ${news.length}개
-- 데이터 형식: JsonArray
+    const summaryDate = new Date()
+    summaryDate.setHours(6, 0, 0, 0);
 
-## 분석 단계
-
-### 1. 뉴스 클러스터링
-- 제공된 뉴스를 3-5개의 핵심 주제로 그룹화
-- 각 기사는 가장 연관성 높은 하나의 주제로 분류
-- 주제당 최소 1개 이상의 기사 포함
-
-### 2. 트윗 스레드 구성
-각 주제별로 다음 구조의 트윗 스레드 생성:
-
-#### 주제 소개
-[번호 이모지] 주제명
-#관련해시태그
-[주제 핵심 설명 2-3문장]
-
-#### 상세 분석
-💡 주요 인사이트
-• [핵심 포인트 1]
-• [핵심 포인트 2]
-• [핵심 포인트 3]
-
-#### 참고 자료
-🔗 관련 뉴스
-• [뉴스 제목 1] URL
-• [뉴스 제목 2] URL
-
-### 3. 종합 요약 트윗
-📊 ${tag} 트렌드 종합
-[전체 분석 핵심 메시지]
-#해시태그1 #해시태그2 #해시태그3
-
-## 작성 규칙
-
-### 형식 제한
-- 각 트윗 길이: 최대 280자
-- 해시태그: 주제당 2-3개, 종합 요약에 3-5개
-- 이모지: 가독성을 고려하여 적절히 사용
-
-### 콘텐츠 지침
-- 객관적이고 전문적인 톤 유지
-- 간결하고 명확한 문장 구조
-- 핵심 정보 중심의 요약
-- 관련 뉴스 URL 반드시 포함
-
-### 품질 체크리스트
-- 모든 주요 뉴스가 하나 이상의 주제에 포함됨
-- 각 트윗이 280자 제한을 준수함
-- 모든 URL이 정확히 포함됨
-- 해시태그가 적절히 사용됨
-- 이모지가 문맥에 맞게 사용됨`;
-
-const aa=`
-${tag} 영역의 ${news.length} 개의 뉴스 기사를 다음 지침에 따라 트위터 형식으로 분석하고 요약해 주세요. 각 뉴스 기사에 대해 제목, 내용 요약, URL이 제공될 것입니다.
-
-1. 뉴스 분석 및 그룹화:
-   - ${news.length}개의 기사를 분석하고 최대 5개의 주요 주제로 그룹화하세요.
-   - 각 뉴스 기사를 가장 관련성 높은 주제에 포함시키세요.
-
-2. 요약 구조:
-   - <<${tag}>>
-   - 각 주제에 대해 3개의 연결된 트윗을 작성하세요.
-   - 요약을 마무리하는 트윗을 작성하세요.
-
-3. 트윗 작성 지침:
-   - 각 트윗은 280자를 초과하지 않아야 합니다.
-   - 가독성을 높이기 위해 적절하게 이모지를 사용하세요.
-
-4. 주제 내용 구조:
-   - 첫 번째 트윗:
-     • 주제 번호 이모지로 시작 (1️⃣, 2️⃣, 3️⃣)
-     • 주제 제목과 관련 해시태그
-     • 주제에 대한 간단한 설명 (1-2문장)
-   - 두 번째 트윗:
-     • 💡 이모지로 시작
-     • 주요 포인트(2-3개)를 글머리 기호로 나열
-   - 세 번째 트윗:
-     • 🔗 이모지로 시작
-     • 주제와 관련된 뉴스 제목과 URL 나열
-
-5. 언어와 어조:
-   - 간결하고 명확한 언어를 사용하세요.
-   - 객관적인 어조를 유지하세요.
-
-6. 해시태그:
-   - 관련 해시태그는 마무리 트윗에만 포함하세요.
-   - 주요 주제와 테마를 요약하는 3-5개의 해시태그를 사용하세요.
-
-7. 최종 확인:
-   - 모든 중요한 정보가 포함되었는지 확인하세요.
-   - 전체적인 흐름이 논리적이고 이해하기 쉬운지 확인하세요.
-
-## 입력 형식:
-각 뉴스 기사에 대해 JsonArray 형태의 정보를 받게 됩니다:
-[{
-  "title":"뉴스 제목",
-  "content":"[뉴스 내용]",
-  "url":"[뉴스 기사 URL]"
-},
-...
-{
-  "title":"뉴스 제목",
-  "content":"[뉴스 내용]",
-  "url":"[뉴스 기사 URL]"
-      }]
-
-이 지침에 따라 제공된 5개의 뉴스 기사를 요약해 주세요. 총 트윗 수는 "주제", "각 주제에 대한 3개의 트윗", 그리고 "마무리"로 구성되어야 합니다.
-`;
-        //console.log('AI 프롬프트:', prompt);
-    
-        const content = await callApi(prompt, newsString); // callApi를 사용하여 요약 생성
-
-        console.log('content: ', content);
-
-        const summaryDate = new Date()
-        summaryDate.setHours(6, 0, 0, 0);
-
-        // DailySummary 생성 또는 업데이트
-        await prisma.dailySummary.upsert({
-          where: {
-            date_tag: {
-              date: summaryDate,
-              tag
-            }
-          },
-          create: {
-            date: summaryDate,
-            tag,
-            summary: content,
-            newsCount: news.length
-          },
-          update: {
-            summary: content,
-            newsCount: news.length
-          }
-        });
-      } catch (error) {
-        console.error('뉴스 요약 중 오류 발생:', error);
-        throw new Error('뉴스 요약 중 오류가 발생했습니다.');
+    // DailySummary 생성 또는 업데이트
+    await prisma.dailySummary.upsert({
+      where: {
+        date_tag: {
+          date: summaryDate,
+          tag: tag as string
+        }
+      },
+      create: {
+        date: summaryDate,
+        tag: tag as string,
+        summary: content,
+        newsCount: news.length
+      },
+      update: {
+        summary: content,
+        newsCount: news.length
       }
-    }
-
-    console.log(`${date.toLocaleDateString()} 일간 요약 생성 완료`);
+    });
   } catch (error) {
-    console.error('일간 요약 생성 중 오류 발생:', error);
-    throw new Error('일간 요약 생성 중 오류가 발생했습니다.');
+    console.error('뉴스 요약 중 오류 발생:', error);
+    throw new Error('뉴스 요약 중 오류가 발생했습니다.');
   }
 }
+
+
 
 export async function getDailySummaries(date: string | null, category: string | null) {
   try {

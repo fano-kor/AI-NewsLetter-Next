@@ -1,28 +1,32 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient().$extends({
-  query: {
-    $allModels: {
-      async $allOperations({ operation, model, args, query }) {
-        const startTime = Date.now()
-        const result = await query(args)
-        const duration = Date.now() - startTime
-        
-        if (process.env.NODE_ENV === 'production') {
-          console.log(JSON.stringify({
-            timestamp: new Date().toISOString(),
-            level: 'info',
-            event: 'prisma:query',
-            model,
-            operation,
-            duration: `${duration}ms`
-          }))
-        }
-        return result
-      }
-    }
-  }
-})
+const prisma = new PrismaClient({
+  log: [
+    {
+      emit: 'event',
+      level: 'query',
+    },
+    {
+      emit: 'event',
+      level: 'info',
+    },
+    {
+      emit: 'event',
+      level: 'warn',
+    },
+    {
+      emit: 'event',
+      level: 'error',
+    },
+  ],
+});
 
-export default prisma
+// 쿼리 로그를 출력하는 이벤트 리스너 추가
+prisma.$on('query', (e) => {
+  console.log(`query: ${e.query}`);
+  console.log(`parameters: ${JSON.stringify(e.params)}`);
+  console.log(`execution time: ${e.duration}ms`);
+});
+
+export default prisma;
 

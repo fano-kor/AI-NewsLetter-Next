@@ -27,6 +27,7 @@ const SignUp: React.FC = () => {
     e.preventDefault();
     setError("");
     try {
+      console.log("##register 1")
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

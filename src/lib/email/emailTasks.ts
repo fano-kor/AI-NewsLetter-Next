@@ -28,12 +28,17 @@ export async function sendEmailToUser(user: any) {
       distinct: ['tag']
     });
 
-    if (summaries.length === 0) {
+    // user.interestTags의 순서에 맞게 결과를 정렬
+    const orderedSummaries = user.interestTags.map((tag: string) => 
+      summaries.find(summary => summary.tag === tag)
+    ).filter((summary: String) => summary !== undefined);
+
+    if (orderedSummaries.length === 0) {
       throw new Error('해당 키워드의 요약이 없습니다.');
     }
 
     // 키워드별 요약을 마크다운 형식으로 구성
-    const markdownContent = summaries.map(item => `
+    const markdownContent = orderedSummaries.map((item: { tag: string; summary: string }) => `
 ## ${item.tag} 뉴스
 ${item.summary}
     `).join('\n\n');
