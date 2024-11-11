@@ -2,7 +2,7 @@
 
 import { getUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { startOfDay } from 'date-fns';
+// import { startOfDay } from 'date-fns';
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const DEFAULT_AI_PROMPT = process.env.DEFAULT_AI_PROMPT;
@@ -15,7 +15,8 @@ async function callApi(prompt: string, newsString: string) {
   };
 
   const data = {
-    "model": "llama-3.1-sonar-large-128k-online",
+    //"model": "llama-3.1-sonar-large-128k-online",
+    "model": "llama-3.1-sonar-large-128k-chat",
     //"model": "llama-3.1-70b-instruct",
     "messages": [
       {"role": "system", "content": prompt},
@@ -31,6 +32,7 @@ async function callApi(prompt: string, newsString: string) {
     body: JSON.stringify(data)
   });
 
+
   if (!response.ok) {
     console.error('API 요청 실패:', response.status, response.statusText);
     const errorBody = await response.text();
@@ -39,7 +41,7 @@ async function callApi(prompt: string, newsString: string) {
   }
 
   const result = await response.json();
-
+  console.log('result: ', result);
   if ('choices' in result && result.choices.length > 0) {
     return result.choices[0].message.content;
   } else {
@@ -56,7 +58,7 @@ export async function makeLetter(news: any[]) {
       throw new Error('사용자를 찾을 수 없습니다.');
     }
 
-    const prompt = user.aiPrompt || DEFAULT_AI_PROMPT || "당신은 여러 출처의 중요한 뉴스를 요약하도록 설계된 AI입니다. JSONArray 형식으로 뉴스 기사가 제공되며, 이를 읽고 주요 뉴스를 추출하여 간결한 뉴스 브리핑을 작성하는 것이 당신의 역할입니다.";
+    const prompt = (user.aiPrompt ?? DEFAULT_AI_PROMPT) ?? "당신은 여러 출처의 중요한 뉴스를 요약하도록 설계된 AI입니다. JSONArray 형식으로 뉴스 기사가 제공되며, 이를 읽고 주요 뉴스를 추출하여 간결한 뉴스 브리핑을 작성하는 것이 당신의 역할입니다.";
     console.log('AI 프롬프트:', prompt);
 
     const content = await callApi(prompt, newsString);
@@ -117,7 +119,8 @@ export async function getNewsWithoutSummary() {
       select: {
         id: true,
         title: true,
-        content: true
+        content: true,
+        url: true
       },
       where: {
         summary: null
@@ -311,13 +314,13 @@ export async function createTagSummary(tag:string) {
   }
 }
 
-async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
+async function summarizeTag(tag:string, startOfDay:Date, endOfDay:Date){
   
   // 해당 키워드와 일자의 뉴스를 조회
   const news = await prisma.news.findMany({
     where: {
       AND: [
-        { tags: { has: tag as string } },
+        { tags: { has: tag } },
         {
           publishedAt: {
             gte: startOfDay,
@@ -329,6 +332,7 @@ async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
     select: {
       title: true,
       content: true,
+      url: true
     }
   });
 
@@ -338,28 +342,40 @@ async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
 
   try {
     const newsString = JSON.stringify(news);
+
+    let prompt: string = ``;  
+    if(["KT", "비씨카드", "스마트로", "케이뱅크"].includes(tag)) {
+      prompt = `비씨카드 사내 뉴스 요약 서비스 입니다. 비씨카드 사내 뉴스를 요약하는 것이 당신의 역할입니다
+      비씨카드 그룹사
+      모회사:KT
+      자회사:스마트로, 케이뱅크
+      `
+    }
     
     // AI를 사용하여 일간 요약 생성
-    const prompt = `입력 데이터 형식:
+    prompt += `##입력 데이터 형식:
 {
   "title": "뉴스 제목",
   "content": "뉴스 본문",
   "url": "뉴스 URL"
 }
-뉴스 선별 규칙:
-1. 제공된 ${news.length}개의 뉴스를 3-5개의 핵심 주제로 선별
-2. 핵심 주제 별 기사 요약
+##뉴스 선별 규칙:
+- 제공된 ${news.length}개의 뉴스를 3-5개의 핵심 주제로 선별
+- 핵심 주제 별 기사 요약
 
-요약 규칙:
-1. 시작은 《${tag}》로 시작
-2. 각 주제는 이모지(➖)로 시작
-3. 제목과 내용은 '...'으로 구분하고 제목은 굵게 작성
-4. 주요 내용은 쉼표(,)로 구분
-5. 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조
-7. 뉴스 내용에 적합한 이모지를 내용 내에 추가
-8. 전체 길이는 200자 이내로 제한
+##요약 규칙:
+- 한국어로 작성
+- 각 주제는 이모지(➖)로 시작
+- 제목과 내용은 '...'으로 구분하고 제목은 굵게 작성
+- 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조
+- 뉴스 내용에 적합한 이모지를 내용 내에 추가
+- 전체 길이는 200자 이내로 제한
+- '%', '억원', '만원' 등의 수치는 반드시 포함
+- 증감을 나타내는 수치에는 방향 이모지 추가 (예: 5%⬆️ 3%⬇️) 
+- **반드시 한국어로 작성, 한국어가 아닌 언어로 작성된 경우 한국어로 수정**
+- 각 요약 마지막에 원본 뉴스 링크 추가 **🔗[[Link]]({url})**
 
-이모지 사용 가이드:
+##이모지 사용 가이드:
 - 경제/금융: 📈 📉 💹 💰 💲 
 - 산업/제조: 🏭 🔧 ⚙️ 🚗
 - 에너지/환경: ⚡ 🔋 ☢️ 🌱
@@ -369,19 +385,35 @@ async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
 - 긍정/호재: 📈 💪 ⭐
 - 부정/악재: 📉 💥 ⚡
 
-예시 결과:
-➖🔋⚡ 체코 협상단 내달 방한…美·佛 흔들기에도 원전 협상 '계속'...'60여명' 대표단 찾아 본계약 협상 진행, 한국형 원전 운영·건설현장 시찰도, 체코 반독점당국 '90일' 조사 개시
-➖🐮💰 소고기값 좀 싸지려나? 프랑스산 소고기 곧 수입...'2026년' 수입산 소고기 관세 철폐, 한우농가 소 1마리당 수익성 '-140만원'⬇️, 한우 농가 "교역 희생양" 우려
+##예시 결과:
+➖📈**BNK경남은행 '울산 신정시장·탑마트🛒 마이태그 이벤트' 진행...** 울산 신정시장에서 20% 또는 30% 할인, 탑마트에서는 1만원 할인. 이벤트 참여 고객 중 100명을 추첨해 아르떼 뮤지엄 부산점 입장권 지급[[🔗Link]]({url})
 
-위 형식과 규칙에 맞춰 입력된 뉴스를 요약. 특히 다음 사항에 유의:
-1. '%', '억원', '만원' 등의 수치는 반드시 포함
-2. 증감을 나타내는 수치 앞에는 방향 이모지 추가 (예: 5%⬆️ 3%⬇️) 
-3. 연도나 날짜는 작은따옴표로 강조
-4. 금액이나 수량은 큰따옴표로 강조
-5. 내용 파악에 도움이 되는 이모지를 추가
+➖🐮💰**소고기값 좀 싸지려나? 프랑스산 소고기 곧 수입...**'2026년' 수입산 소고기 관세 철폐, 한우농가 소 1마리당 수익성 '-140만원'⬇️, 한우 농가 "교역 희생양" 우려[[🔗Link]]({url})
 `
 
-    //console.log('AI 프롬프트:', prompt);
+    if (tag === "금융AI") {
+      prompt +=`
+금융권 AI 뉴스 요약 서비스입니다. 금융권의 AI 관련 뉴스를 요약하는 것이 당신의 역할입니다.
+##중점 분야:
+1. AI 기반 금융 서비스
+2. 챗봇, RPA 등 AI 도입 사례
+3. AI 기술 개발 및 투자
+4. AI 관련 규제 및 정책
+5. AI 인재 양성 및 조직 변화
+
+##특별 강조사항:
+- AI 도입으로 인한 정량적 효과
+- 새로운 AI 기술 적용 사례
+- AI 관련 투자 금액
+- AI 프로젝트의 구체적 성과
+
+##반드시 확인해야 할 사항:
+- 금융권의 AI 관련 뉴스만 요약
+- 최종 요약이 금융권의 AI 관련 뉴스가 아니면 제거
+`
+    }
+
+    console.log('AI 프롬프트:', prompt);
 
     const content = await callApi(prompt, newsString); // callApi를 사용하여 요약 생성
 
@@ -395,12 +427,12 @@ async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
       where: {
         date_tag: {
           date: summaryDate,
-          tag: tag as string
+          tag: tag
         }
       },
       create: {
         date: summaryDate,
-        tag: tag as string,
+        tag: tag,
         summary: content,
         newsCount: news.length
       },
@@ -419,7 +451,7 @@ async function summarizeTag(tag:String, startOfDay:Date, endOfDay:Date){
 
 export async function getDailySummaries(date: string | null, category: string | null) {
   try {
-    const startOfDay = new Date(date || new Date());
+    const startOfDay = new Date(date ?? new Date());
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(startOfDay);

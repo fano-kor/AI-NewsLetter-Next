@@ -9,7 +9,7 @@ import { sendEmail } from '@/lib/emailer';
 export async function sendEmailToUser(user: any) {
   try {
     const today = new Date();
-    today.setHours(6, 0, 0, 0);  // 오늘 06시
+    today.setHours(6, 0, 0, 0);  // 오늘 07시
 
     const summaries = await prisma.dailySummary.findMany({
       where: {
@@ -120,7 +120,7 @@ let isSchedulerInitialized = false;
 // 환경 변수에서 크론 스케줄 가져오기
 //const NEWS_SUMMARY_CRON = process.env.NEWS_SUMMARY_CRON || '*/5 * * * *';
 //const EMAIL_SEND_CRON = process.env.EMAIL_SEND_CRON || '*/5 * * * *';
-const SUMMARIZE_NEWS_CRON = process.env.SUMMARIZE_NEWS_CRON || '0 6 * * *';
+const SUMMARIZE_NEWS_CRON = process.env.SUMMARIZE_NEWS_CRON || '0 7 * * *';
 const SEND_MAIL_CRON = process.env.SEND_MAIL_CRON || '0 8 * * *';
 
 export async function initializeScheduler() {

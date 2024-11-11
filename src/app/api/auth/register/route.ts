@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const { name, email, password } = await request.json();
 
-    if (!email.endsWith('@bccard.com') || email !== "leejh900811@gmail.com") {
+    if (!email.endsWith('@bccard.com') && email !== "leejh900811@gmail.com") {
       return NextResponse.json({ error: '유효하지 않은 이메일 주소입니다.' }, { status: 400 });
     }
 

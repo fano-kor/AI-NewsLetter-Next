@@ -11,6 +11,7 @@ const SignUp: React.FC = () => {
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,9 +26,12 @@ const SignUp: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+    
     setError("");
+    setIsLoading(true);
+    
     try {
-      console.log("##register 1")
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,12 +40,14 @@ const SignUp: React.FC = () => {
       const data = await res.json();
       if (res.ok) {
         setIsEmailSent(true);
-        setTimeLeft(180); // 3분 = 180초
+        setTimeLeft(180);
       } else {
         setError(data.error || "회원가입 중 오류가 발생했습니다.");
       }
     } catch (error) {
       setError("회원가입 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,10 +156,20 @@ const SignUp: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-            disabled={(isEmailSent && timeLeft !== null && timeLeft <= 0)}
+            className="w-full px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={isLoading || (isEmailSent && timeLeft !== null && timeLeft <= 0)}
           >
-            {isEmailSent ? "이메일 인증" : "회원가입"}
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                처리중...
+              </span>
+            ) : (
+              isEmailSent ? "이메일 인증" : "회원가입"
+            )}
           </button>
         </form>
       </div>
