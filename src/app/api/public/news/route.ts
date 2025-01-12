@@ -32,8 +32,14 @@ export async function POST(request: Request) {
 
       if (existingArticle) {
         // 기존 기사가 존재하면 키워드 업데이트
-        const updatedKeywords = Array.from(new Set([...existingArticle.keywords, ...article.keywords]));
-        const updatedTags = Array.from(new Set([...existingArticle.tags, ...article.tags]));
+        const existingKeywords = existingArticle.keywords ?? [];
+        const existingTags = existingArticle.tags ?? [];
+        console.log("existingKeywords: %o", existingKeywords);
+        console.log("existingTags: %o", existingTags);
+        const updatedKeywords = Array.from(new Set([...existingKeywords, ...(article.keywords || [])]));
+        console.log("updatedKeywords: %o", updatedKeywords);
+        const updatedTags = Array.from(new Set([...existingTags, ...(article.tags || [])]));
+        console.log("updatedTags: %o", updatedTags);
         await prisma.news.update({
           where: { url: article.url },
           data: {

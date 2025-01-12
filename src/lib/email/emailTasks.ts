@@ -120,8 +120,8 @@ let isSchedulerInitialized = false;
 // 환경 변수에서 크론 스케줄 가져오기
 //const NEWS_SUMMARY_CRON = process.env.NEWS_SUMMARY_CRON || '*/5 * * * *';
 //const EMAIL_SEND_CRON = process.env.EMAIL_SEND_CRON || '*/5 * * * *';
-const SUMMARIZE_NEWS_CRON = process.env.SUMMARIZE_NEWS_CRON || '0 7 * * *';
-const SEND_MAIL_CRON = process.env.SEND_MAIL_CRON || '0 8 * * *';
+const SUMMARIZE_NEWS_CRON = process.env.SUMMARIZE_NEWS_CRON ?? '0 7 * * *';
+const SEND_MAIL_CRON = process.env.SEND_MAIL_CRON ?? '0 8 * * *';
 
 export async function initializeScheduler() {
   if (isSchedulerInitialized) {

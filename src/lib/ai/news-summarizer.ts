@@ -315,12 +315,15 @@ export async function createTagSummary(tag:string) {
 }
 
 async function summarizeTag(tag:string, startOfDay:Date, endOfDay:Date){
-  
+  let tags = [tag]
+  if(tag === '개인정보보호') {
+    tags = ['개인정보', '가명정보']
+  }
   // 해당 키워드와 일자의 뉴스를 조회
   const news = await prisma.news.findMany({
     where: {
       AND: [
-        { tags: { has: tag } },
+        { tags: { hasSome: tags } },
         {
           publishedAt: {
             gte: startOfDay,
@@ -343,37 +346,44 @@ async function summarizeTag(tag:string, startOfDay:Date, endOfDay:Date){
   try {
     const newsString = JSON.stringify(news);
 
-    let prompt: string = ``;  
-    if(["KT", "비씨카드", "스마트로", "케이뱅크"].includes(tag)) {
-      prompt = `비씨카드 사내 뉴스 요약 서비스 입니다. 비씨카드 사내 뉴스를 요약하는 것이 당신의 역할입니다
+    let prompt = ""
+    if(["KT", "비씨카드", "스마트로", "케이뱅크"].includes(tag)){
+      prompt += `비씨카드 사내 뉴스 요약 서비스 입니다. 비씨카드 사내 뉴스를 요약하는 것이 당신의 역할입니다
       비씨카드 그룹사
       모회사:KT
-      자회사:스마트로, 케이뱅크
-      `
+      자회사:스마트로, 케이뱅크`
+    } else if(["개인정보보호"].includes(tag)){
+      prompt += `IT 및 금융권의 ${tag} 소식을 요약하는 것이 당신의 역할입니다.
+주어지는 뉴스 기사 중 IT 및 금융권과 관련이 없는 소식이면 요약을 하지 말아주세요.
+요약을 할때는 ${tag} 관련 내용 위주로 요약해주세요.
+중복 내용은 제거 해주세요.
+`
+    } else {
+      prompt += `뉴스를 선별, 요약하는 것이 당신의 역할입니다.`;
     }
-    
     // AI를 사용하여 일간 요약 생성
-    prompt += `##입력 데이터 형식:
+    prompt += `
+##입력 데이터 형식:
 {
   "title": "뉴스 제목",
   "content": "뉴스 본문",
   "url": "뉴스 URL"
 }
 ##뉴스 선별 규칙:
-- 제공된 ${news.length}개의 뉴스를 3-5개의 핵심 주제로 선별
-- 핵심 주제 별 기사 요약
+- 제공된 ${news.length}개의 뉴스 중 3-5개의 중요 뉴스로 선별
+- 중요도 높은 순으로 배치
+- 중요 뉴스 별 기사 요약
 
 ##요약 규칙:
 - 한국어로 작성
-- 각 주제는 이모지(➖)로 시작
-- 제목과 내용은 '...'으로 구분하고 제목은 굵게 작성
+- 각 중요 뉴스는 이모지(➖)로 시작
 - 핵심 수치는 반드시 포함하고 굵게 표시하거나 따옴표로 강조
 - 뉴스 내용에 적합한 이모지를 내용 내에 추가
 - 전체 길이는 200자 이내로 제한
 - '%', '억원', '만원' 등의 수치는 반드시 포함
 - 증감을 나타내는 수치에는 방향 이모지 추가 (예: 5%⬆️ 3%⬇️) 
-- **반드시 한국어로 작성, 한국어가 아닌 언어로 작성된 경우 한국어로 수정**
-- 각 요약 마지막에 원본 뉴스 링크 추가 **🔗[[Link]]({url})**
+- 반드시 한국어로 작성, 한국어가 아닌 언어로 작성된 경우 한국어로 수정
+- 각 요약 마지막에 원본 뉴스 링크 추가 **[🔗[Link]]({url})**
 
 ##이모지 사용 가이드:
 - 경제/금융: 📈 📉 💹 💰 💲 
@@ -386,11 +396,12 @@ async function summarizeTag(tag:string, startOfDay:Date, endOfDay:Date){
 - 부정/악재: 📉 💥 ⚡
 
 ##예시 결과:
-➖📈**BNK경남은행 '울산 신정시장·탑마트🛒 마이태그 이벤트' 진행...** 울산 신정시장에서 20% 또는 30% 할인, 탑마트에서는 1만원 할인. 이벤트 참여 고객 중 100명을 추첨해 아르떼 뮤지엄 부산점 입장권 지급**🔗[[Link]]({url})**
+➖📈**BNK경남은행 '울산 신정시장·탑마트🛒 마이태그 이벤트' 진행...**
+울산 신정시장에서 20% 또는 30% 할인, 탑마트에서는 1만원 할인. 이벤트 참여 고객 중 100명을 추첨해 아르떼 뮤지엄 부산점 입장권 지급**[🔗[Link]]({url})**
 
-➖🐮💰**소고기값 좀 싸지려나? 프랑스산 소고기 곧 수입...**'2026년' 수입산 소고기 관세 철폐, 한우농가 소 1마리당 수익성 '-140만원'⬇️, 한우 농가 "교역 희생양" 우려**🔗[[Link]]({url})**
+➖🐮💰**소고기값 좀 싸지려나? 프랑스산 소고기 곧 수입...**
+'2026년' 수입산 소고기 관세 철폐, 한우농가 소 1마리당 수익성 '-140만원'⬇️, 한우 농가 "교역 희생양" 우려**[🔗[Link]]({url})**
 `
-
     if (tag === "금융AI") {
       prompt +=`
 금융권 AI 뉴스 요약 서비스입니다. 금융권의 AI 관련 뉴스를 요약하는 것이 당신의 역할입니다.
@@ -415,9 +426,9 @@ async function summarizeTag(tag:string, startOfDay:Date, endOfDay:Date){
 
     console.log('AI 프롬프트:', prompt);
 
-    const content = await callApi(prompt, newsString); // callApi를 사용하여 요약 생성
-
+    let content = await callApi(prompt, newsString); // callApi를 사용하여 요약 생성
     console.log('content: ', content);
+    content = content.replace(/\n{2,}/g, '\n'); // 두 개 이상의 연속된 개행문자를 하나로 변경
 
     const summaryDate = new Date()
     summaryDate.setHours(6, 0, 0, 0);

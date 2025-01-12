@@ -5,4 +5,3 @@ export async function GET() {
   startEmailScheduler();
   return NextResponse.json({ message: 'Mail scheduler started' });
 }
-
