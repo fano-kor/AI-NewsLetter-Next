@@ -1,13 +1,27 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn, FiSettings } from "react-icons/fi";
+import React, { useEffect } from "react";
+import { FiGrid, FiCalendar, FiUser, FiFileText, FiLayout, FiLayers, FiLogIn, FiSettings, FiList } from "react-icons/fi";
+import { RiAdminLine } from "react-icons/ri";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { useQuery } from '@tanstack/react-query';
+
+interface User {
+  name: string;
+  role: string;
+  // 필요한 다른 사용자 정보 필드
+}
+
+const fetchUser = async (): Promise<User> => {
+  const response = await fetch('/api/user');
+  if (!response.ok) throw new Error('사용자 데이터를 불러오는데 실패했습니다.');
+  return response.json();
+};
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -19,16 +33,26 @@ const menuGroups = [
   {
     name: "MENU",
     menuItems: [
+      // {
+      //   icon: <FiGrid className="w-5 h-5" />,
+      //   label: "Dashboard",
+      //   route: "#",
+      //   children: [{ label: "eCommerce", route: "/" }],
+      // },
       {
-        icon: <FiGrid className="w-5 h-5" />,
-        label: "Dashboard",
-        route: "#",
-        children: [{ label: "eCommerce", route: "/" }],
+        icon: <FiFileText className="w-5 h-5" />,
+        label: "Keyword News",
+        route: "/keyword-news",
+      },
+      {
+        icon: <FiList className="w-5 h-5" />,
+        label: "일간 요약",
+        route: "/daily-summary",
       },
       {
         icon: <FiCalendar className="w-5 h-5" />,
-        label: "News",
-        route: "/news",
+        label: "IT News",
+        route: "/it-news",
       },
       {
         icon: <FiSettings className="w-5 h-5" />,
@@ -36,47 +60,52 @@ const menuGroups = [
         route: "/settings",
       },
       {
-        icon: <FiCalendar className="w-5 h-5" />,
-        label: "Calendar",
-        route: "/calendar",
+        icon: <RiAdminLine className="w-5 h-5" />,
+        label: "Admin",
+        route: "/admin",
       },
-      {
-        icon: <FiUser className="w-5 h-5" />,
-        label: "Profile",
-        route: "/profile",
-      },
-      {
-        icon: <FiFileText className="w-5 h-5" />,
-        label: "Forms",
-        route: "#",
-        children: [
-          { label: "Form Elements", route: "/forms/form-elements" },
-          { label: "Form Layout", route: "/forms/form-layout" },
-        ],
-      },
-      {
-        icon: <FiLayout className="w-5 h-5" />,
-        label: "Tables",
-        route: "/tables",
-      },
-      {
-        icon: <FiLayers className="w-5 h-5" />,
-        label: "UI Elements",
-        route: "#",
-        children: [
-          { label: "Alerts", route: "/ui/alerts" },
-          { label: "Buttons", route: "/ui/buttons" },
-        ],
-      },
-      {
-        icon: <FiLogIn className="w-5 h-5" />,
-        label: "Authentication",
-        route: "#",
-        children: [
-          { label: "Sign In", route: "/auth/signin" },
-          { label: "Sign Up", route: "/auth/signup" },
-        ],
-      },
+      // {
+      //   icon: <FiCalendar className="w-5 h-5" />,
+      //   label: "Calendar",
+      //   route: "/calendar",
+      // },
+      // {
+      //   icon: <FiUser className="w-5 h-5" />,
+      //   label: "Profile",
+      //   route: "/profile",
+      // },
+      // {
+      //   icon: <FiFileText className="w-5 h-5" />,
+      //   label: "Forms",
+      //   route: "#",
+      //   children: [
+      //     { label: "Form Elements", route: "/forms/form-elements" },
+      //     { label: "Form Layout", route: "/forms/form-layout" },
+      //   ],
+      // },
+      // {
+      //   icon: <FiLayout className="w-5 h-5" />,
+      //   label: "Tables",
+      //   route: "/tables",
+      // },
+      // {
+      //   icon: <FiLayers className="w-5 h-5" />,
+      //   label: "UI Elements",
+      //   route: "#",
+      //   children: [
+      //     { label: "Alerts", route: "/ui/alerts" },
+      //     { label: "Buttons", route: "/ui/buttons" },
+      //   ],
+      // },
+      // {
+      //   icon: <FiLogIn className="w-5 h-5" />,
+      //   label: "Authentication",
+      //   route: "#",
+      //   children: [
+      //     { label: "Sign In", route: "/auth/signin" },
+      //     { label: "Sign Up", route: "/auth/signup" },
+      //   ],
+      // },
     ],
   },
 ];
@@ -84,6 +113,101 @@ const menuGroups = [
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const pathname = usePathname();
   const [pageName, setPageName] = useLocalStorage("selectedMenu", "dashboard");
+  
+  const { data: user, isLoading } = useQuery({
+    queryKey: ['user'],
+    queryFn: fetchUser
+  });
+
+  // Admin 사용자인지 확인하는 함수
+  const isAdmin = user?.role === 'admin';
+
+  // menuGroups를 동적으로 생성합니다
+  const menuGroups = [
+    // {
+    //   icon: <FiGrid className="w-5 h-5" />,
+    //   label: "Dashboard",
+    //   route: "#",
+    //   children: [{ label: "eCommerce", route: "/" }],
+    // },
+    {
+      name: "MENU",
+      menuItems: [
+        {
+          icon: <FiList className="w-5 h-5" />,
+          label: "일간     요약",
+          route: "/daily-summary",
+        },
+        {
+          icon: <FiFileText className="w-5 h-5" />,
+          label: "Keyword News",
+          route: "/keyword-news",
+        },
+        {
+          icon: <FiCalendar className="w-5 h-5" />,
+          label: "IT News",
+          route: "/it-news",
+        },
+        {
+          icon: <FiSettings className="w-5 h-5" />,
+          label: "Settings",
+          route: "/settings",
+        },
+        // Admin 메뉴는 isAdmin이 true일 때만 포함됩니다
+        ...(isAdmin ? [{
+          icon: <RiAdminLine className="w-5 h-5" />,
+          label: "Admin",
+          route: "/admin",
+        }] : []),
+        // {
+        //   icon: <FiCalendar className="w-5 h-5" />,
+        //   label: "Calendar",
+        //   route: "/calendar",
+        // },
+        // {
+        //   icon: <FiUser className="w-5 h-5" />,
+        //   label: "Profile",
+        //   route: "/profile",
+        // },
+        // {
+        //   icon: <FiFileText className="w-5 h-5" />,
+        //   label: "Forms",
+        //   route: "#",
+        //   children: [
+        //     { label: "Form Elements", route: "/forms/form-elements" },
+        //     { label: "Form Layout", route: "/forms/form-layout" },
+        //   ],
+        // },
+        // {
+        //   icon: <FiLayout className="w-5 h-5" />,
+        //   label: "Tables",
+        //   route: "/tables",
+        // },
+        // {
+        //   icon: <FiLayers className="w-5 h-5" />,
+        //   label: "UI Elements",
+        //   route: "#",
+        //   children: [
+        //     { label: "Alerts", route: "/ui/alerts" },
+        //     { label: "Buttons", route: "/ui/buttons" },
+        //   ],
+        // },
+        // {
+        //   icon: <FiLogIn className="w-5 h-5" />,
+        //   label: "Authentication",
+        //   route: "#",
+        //   children: [
+        //     { label: "Sign In", route: "/auth/signin" },
+        //     { label: "Sign Up", route: "/auth/signup" },
+        //   ],
+        // },
+      ],
+    },
+  ];
+
+  if (isLoading) {
+    return <div>로딩 중...</div>;
+  }
 
   return (
     <ClickOutside onClick={() => setSidebarOpen(false)}>

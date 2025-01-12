@@ -5,14 +5,20 @@ import BCDataGrid from '@/components/BCCard/BCDataGrid';
 import NewsSummary from '@/components/NewsSummary/NewsSummary';
 import axios from 'axios';
 import { debounce } from 'lodash';
-import { FiMaximize2, FiMinimize2 } from 'react-icons/fi'; // 아이콘 추가
+import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface News {
   id: number;
   title: string;
   content: string;
-  published_at: string;
+  url: string;
+  publishedAt: string;
+  summary?: string;
+  tags?: string[];
+  criticalLevel?: string;
 }
 
 interface NewsResponse {
@@ -20,7 +26,12 @@ interface NewsResponse {
   totalCount: number;
 }
 
-const TableNews: React.FC = () => {
+interface NewsBaseProps {
+  title: string;
+  tag?: string;
+}
+
+const NewsBase: React.FC<NewsBaseProps> = ({ title, tag }) => {
   const [news, setNews] = useState<News[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
@@ -32,90 +43,109 @@ const TableNews: React.FC = () => {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true); // 요약 화면 확장 상태
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchNews = useCallback(async (search: string) => {
-    setLoading(true);
-    setShowLoading(false);
-    setError(null);
-
-    // 2초 후에 showLoading을 true로 설정하는 타이머 시작
-    loadingTimerRef.current = setTimeout(() => {
-      setShowLoading(true);
-    }, 2000);
-
+  const fetchNews = async (search: string) => {
     try {
-      const response = await fetch(`/api/news?page=${currentPage}&limit=${itemsPerPage}&search=${search}`);
-      if (!response.ok) throw new Error('뉴스 데이터를 가져오는 데 실패했습니다.');
-      const data: NewsResponse = await response.json();
-      setNews(prevNews => {
-        if (JSON.stringify(prevNews) !== JSON.stringify(data.news)) {
-          return data.news;
-        }
-        return prevNews;
+      setLoading(true);
+      setShowLoading(false);
+      setError(null);
+
+      loadingTimerRef.current = setTimeout(() => {
+        setShowLoading(true);
+      }, 2000);
+
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...(search && { search }),
+        ...(tag && { tag })
       });
+
+      const response = await fetch(`/api/news?${params}`);
+      if (!response.ok) throw new Error('뉴스를 불러오는데 실패했습니다.');
+      const data = await response.json();
+      setNews(data.news);
       setTotalCount(data.totalCount);
     } catch (error) {
-      setError(error instanceof Error ? error.message : '알 수 없는 오류 발생');
+      console.error('뉴스 데이터 로딩 중 오류:', error);
+      setError('뉴스를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
       setShowLoading(false);
-      // 타이머가 아직 실행 중이라면 클리어
       if (loadingTimerRef.current) {
         clearTimeout(loadingTimerRef.current);
       }
     }
-  }, [currentPage, itemsPerPage]);
+  };
 
   const debouncedFetchNews = useMemo(
-    () => debounce((search: string) => fetchNews(search), 1000),
-    [fetchNews]
+    () => debounce((search: string) => fetchNews(search), 500),
+    [tag, currentPage, itemsPerPage]
   );
 
   useEffect(() => {
     debouncedFetchNews(searchTerm);
     return () => {
       debouncedFetchNews.cancel();
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-      }
     };
-  }, [debouncedFetchNews, searchTerm, currentPage, itemsPerPage]);
+  }, [debouncedFetchNews, searchTerm, tag, currentPage, itemsPerPage]);
 
-  // Memoize columns to avoid re-creating them on every render
-  const columns = useMemo(() => [
-    SelectColumn, // Default checkbox column
-    { 
-      key: 'id', 
-      name: 'ID', 
-      width: 70,
-      formatter: ({ row }: { row: News }) => (
-        <div style={{ textAlign: 'center' }}>{row.id}</div>
-      ),
-    },
-    { key: 'title', name: '제목' },
-    { key: 'content', name: '내용', width: 500 },
-    { key: 'published_at', name: '발행일' }
-  ], []);
+  const CriticalLevelCell = ({ row }: { row: News }) => {
+    console.log("Formatting criticalLevel for row:", row);
+    const level = row.criticalLevel;
+    const color = level === '크리티컬' ? 'text-red-500' : level === '영향' ? 'text-orange-500' : 'text-green-500';
+    return <span className={`font-semibold ${color}`}>{level}</span>;
+  };
 
-  // Key getter function to return the 'id' for each row
+  const TagsCell = ({ row }: { row: News }) => {
+    return <>{row.tags?.join(', ') || ''}</>;
+  };
+
+  const DateFormatter = ({ row }: { row: News }) => {
+    const date = new Date(row.publishedAt);
+    return (
+      <div className="text-sm">
+        {format(date, 'yyyy-MM-dd HH:mm', { locale: ko })}
+      </div>
+    );
+  };
+
+  const columns = useMemo(() => {
+    console.log("Columns being created");
+    return [
+      SelectColumn,
+      { key: 'title', name: '제목' },
+      { key: 'content', name: '내용', width: 500 },
+      { key: 'tags', name: '태그', renderCell: ({ row }: { row: News }) => row.tags?.join(', ') || '' },
+      { key: 'criticalLevel', name: '민감도', renderCell: CriticalLevelCell },
+      {
+        key: 'publishedAt',
+        name: '발행일',
+        width: 150,
+        renderCell: DateFormatter
+      },
+      // { key: 'summary', name: '요약', width: 300 },
+    ];
+  }, []);
+
   const rowKeyGetter = (row: News) => row.id;
 
   const handleSelectedRowsChange = (selectedRows: Set<number>) => {
-    setSelectedRows(selectedRows);  // Ensure selected rows are updated correctly
+    setSelectedRows(selectedRows);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
-    setCurrentPage(1); // 검색어 변경 시 첫 페이지로 이동
+    setCurrentPage(1);
   };
 
   const handleItemsPerPageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setItemsPerPage(Number(event.target.value));
-    setCurrentPage(1); // 페이지당 항목 수 변경 시 첫 페이지로 이동
+    setCurrentPage(1);
   };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -130,15 +160,18 @@ const TableNews: React.FC = () => {
     setSummary(null);
 
     try {
-      const selectedNews = news.filter((item) => selectedRows.has(item.id));
-      const response = await axios.post('/api/ai/summarize', {
+      const selectedNews = news
+        .filter((item) => selectedRows.has(item.id))
+        .map(({ title, content, url }) => ({ title, content, url }));
+
+      const response = await axios.post('/api/ai/letter', {
         news: selectedNews
       });
 
       setSummary(response.data.summary);
     } catch (error) {
       console.error('AI 뉴스 요약 중 오류 발생:', error);
-      alert('AI 뉴스 요약 중 오류가 발생했습니다.');
+      alert('AI 뉴 요약 중 오류가 발생했습니다.');
     } finally {
       setSummarizing(false);
     }
@@ -153,11 +186,13 @@ const TableNews: React.FC = () => {
       <div className={`rounded-sm border border-stroke bg-white dark:bg-boxdark px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark sm:px-7.5 xl:pb-1 ${isExpanded ? 'w-2/3' : 'w-11/12'}`}>
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-xl font-semibold text-black dark:text-white">
-            뉴스 목록
+            {title}
           </h4>
           <button
             onClick={handleAISummarize}
-            disabled={summarizing || selectedRows.size === 0}
+            // disabled={summarizing || selectedRows.size === 0}
+            disabled={true}
+            title="현재는 유료API 사용으로 내부 BCGPT전환 시 이용가능 합니다."
             className="px-4 py-2 bg-primary text-white rounded hover:bg-opacity-90 disabled:opacity-50"
           >
             {summarizing ? 'AI 요약 중...' : 'AI 요약'} 
@@ -253,4 +288,4 @@ const TableNews: React.FC = () => {
   );
 };
 
-export default TableNews;
+export default NewsBase;

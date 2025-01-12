@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import DataGrid, { DataGridProps, DataGridHandle } from 'react-data-grid';
+import DataGrid, { DataGridProps } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
 
 interface BCDataGridProps<R, SR = unknown, K extends React.Key = React.Key> extends DataGridProps<R, SR, K> {
@@ -27,6 +27,7 @@ function BCDataGrid<R, SR = unknown, K extends React.Key = React.Key>({
     <div className={`relative h-full ${containerClassName || ''}`}>
       <DataGrid
         {...props}
+        columns={props.columns}
         className={gridClassNames.grid}
         rowClass={gridClassNames.row}
       />
